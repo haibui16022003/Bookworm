@@ -1,0 +1,27 @@
+version: "3"
+
+services:
+  fastapi:
+    container_name: bookworm_fastapi
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/db
+    depends_on:
+      - db
+
+  db:
+    container_name: bookworm_db
+    image: bitnami/postgresql:latest
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=bookworm_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/bitnami/postgresql
+
+volumes:
+  postgres_data:

@@ -1,0 +1,13 @@
+pytest
+dotenv
+
+# FastAPI and supporting libraries
+fastapi
+uvicorn
+pyjwt
+python-multipart
+passlib[bcrypt]
+
+# Database libraries
+sqlmodel
+psycopg2-binary
