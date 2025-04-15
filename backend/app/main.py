@@ -1,7 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+from app.db.session import init_db
+from app.api.v1.endpoint import BookRoutes
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: initialize db
+    init_db()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 # Add CORS middleware
 origins = [
@@ -26,7 +37,7 @@ app.add_middleware(
 
 
 # Include routers
-
+app.include_router(BookRoutes.router, prefix="/api/v1", tags=["Books"])
 
 @app.get("/")
 def root():
