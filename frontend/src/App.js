@@ -1,24 +1,30 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import HomePage from './pages/HomePage';
+import AboutPage from './pages/AboutPage';
+import SignInPage from './pages/SignInPage';
+
+// Hard-coded components to avoid errors
+const ShopPage = () => <div>Shop Page</div>;
+const BookDetailPage = () => <div>Book Detail Page</div>;
+const CartPage = () => <div>Cart Page</div>;
+const RegisterPage = () => <div>Register Page</div>;
+const NotFoundPage = () => <div>404 - Not Found</div>;
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/shop" element={<ShopPage />} />
+        <Route path="/book/:id" element={<BookDetailPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/login" element={<SignInPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Router>
   );
 }
 
