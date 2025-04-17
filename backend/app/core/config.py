@@ -20,7 +20,7 @@ class Settings:
         self.SECRET_KEY = self._get("SECRET_KEY")
         self.ALGORITHM = self._get("ALGORITHM", default="HS256")
         self.ACCESS_TOKEN_EXPIRE_MINUTES = int(self._get("ACCESS_TOKEN_EXPIRE_MINUTES", default="15"))
-
+        self.REFRESH_TOKEN_EXPIRE_DAYS = int(self._get("REFRESH_TOKEN_EXPIRE_DAYS", default="7"))
         # cookie settings
         # self.COOKIE_SECURE = os.getenv("COOKIE_SECURE", "False").lower() == "true"
 

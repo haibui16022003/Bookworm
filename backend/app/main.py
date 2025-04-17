@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.db.session import init_db
-from app.api.v1.endpoint import BookRoutes
+from app.utils.middlewares.JWTMiddleware import JWTMiddleware
+from app.api.v1.endpoint import BookRoutes, UserRoute, AuthRoute
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,16 +29,23 @@ app.add_middleware(
 )
 
 # Add JWT middleware
-# app.add_middleware(
-#     JWTMiddleware,
-#     secret_key=settings.SECRET_KEY,
-#     algorithm=settings.ALGORITHM,
-#     exclude_paths=PUBLIC_PATHS
-# )
-
+app.add_middleware(
+    JWTMiddleware,
+    excluded_paths=[
+        "/api/v1/auth/login",
+        "/api/v1/auth/register",
+        "/api/v1/books",
+        "/docs",
+        "/redoc",
+        "/openapi.json"
+    ],
+    protected_paths=["/api"]
+)
 
 # Include routers
 app.include_router(BookRoutes.router, prefix="/api/v1", tags=["Books"])
+app.include_router(UserRoute.router, prefix="/api/v1", tags=["Users"])
+app.include_router(AuthRoute.router, prefix="/api/v1", tags=["Authentication"])
 
 @app.get("/")
 def root():

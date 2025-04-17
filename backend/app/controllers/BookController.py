@@ -48,7 +48,7 @@ class BookController:
 
 
     @staticmethod
-    def _get_base_book_query() -> SQLModel:
+    def _get_base_book_query():
         """Helper function to get the base book query with author join."""
         return (
             select(
@@ -86,10 +86,10 @@ class BookController:
         if author_id:
             query = query.where(BookModel.author_id == author_id)
 
-        books = self.db.exec(query.offset(offset).limit(limit)).all()
+        books = self.db.exec(query.order_by(BookModel.id).offset(offset).limit(limit)).all()
         return [self._build_book_response(book) for book in books]
 
-    def get_book_by_id(self, book_id: int) -> BookResponse:
+    def get_book_by_id(self, book_id: int) -> Optional[BookResponse]:
         """
         Get a book by its ID.
         :param book_id: The ID of the book to retrieve.
@@ -104,7 +104,7 @@ class BookController:
 
         return self._build_book_response(book)
 
-    def get_discount_books(self, offset: int = 0, limit: int = 100) -> List[BookResponse]:
+    def get_discount_books(self, offset: int = 0, limit: int = 100) -> List[Optional[BookResponse]]:
         """
         Get all books that are currently on discount.
         :param offset: Book offset for pagination
@@ -128,7 +128,7 @@ class BookController:
             return []
 
         query = self._get_base_book_query().where(BookModel.id.in_(discounted_book_ids))
-        books = self.db.exec(query).all()
+        books = self.db.exec(query.order_by(BookModel.id)).all()
         return [self._build_book_response(book) for book in books]
 
 
