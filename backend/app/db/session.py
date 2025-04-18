@@ -32,7 +32,9 @@ def create_fake_data():
         CategoryModel,
         BookModel,
         AuthorModel,
-        DiscountModel
+        DiscountModel,
+        UserModel,
+        ReviewModel
     )
 
     with Session(engine) as session:
@@ -177,9 +179,31 @@ def create_fake_data():
         session.add_all(discounts)
         session.commit()
 
-        print(
-            f"Fake data created successfully! Generated {len(categories)} categories, {len(authors)} authors, {len(books)} books, and {len(discounts)} discounts.")
+        print("Creating admin user...")
+        # Create admin user
+        admin = UserModel(
+            first_name="Admin",
+            last_name="User",
+            email="admin@example.com",
+            password="adminpassword",
+            admin=True
+        )
+        session.add(admin)
+        session.commit()
 
+        print("Creating sample review...")
+        # Create reviews for books
+        review = ReviewModel(
+            book_id=1,
+            review_title="Great Book!",
+            review_details="I really enjoyed this book. It was well written and engaging.",
+            review_date=date.today(),
+            rating_star=5
+        )
+        session.add(review)
+        session.commit()
+
+        print(f"Fake data created successfully! Generated {len(categories)} categories, {len(authors)} authors, {len(books)} books, and {len(discounts)} discounts.")
 def init_db() -> None:
     """
     Initialize the database.

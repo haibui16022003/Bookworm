@@ -10,4 +10,4 @@ class ReviewModel(SQLModel, table=True):
     review_title: str = Field(max_length=100)
     review_details: str = Field(sa_column=Column(Text))
     review_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    rating_start: str = Field(max_length=255)
+    rating_star: int = Field(ge=1, le=5)
