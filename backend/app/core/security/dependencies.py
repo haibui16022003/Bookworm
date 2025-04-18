@@ -10,7 +10,7 @@ from app.db.session import get_session
 from app.models import UserModel
 
 
-class TokenData(BaseModel):
+class AccessTokenData(BaseModel):
     """
     Token data schema.
     """
@@ -113,7 +113,7 @@ async def get_current_user(request: Request, db=Depends(get_session)) -> Optiona
         try:
             refresh_token = get_token(request, is_refresh_token=True)
             refresh_payload = decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-            token_data = TokenData(**refresh_payload)
+            token_data = AccessTokenData(**refresh_payload)
 
             user = get_user(token_data.sub, db)
             if user is None:

@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import date
 from sqlalchemy import select, and_, or_
 from sqlmodel import Session, SQLModel
@@ -150,3 +150,23 @@ class BookController:
 
         books = self.db.exec(query).all()
         return [self._build_book_response(book) for book in books]
+
+    def get_book_price(self, book_id: int, quantity: int) -> Dict:
+        """
+        Get the price of a book by its ID and quantity.
+        :param book_id: The ID of the book
+        :param quantity: The quantity of the book
+        :return: The total price of the book
+        """
+        query = self._get_base_book_query().where(BookModel.id == book_id)
+        book = self.db.exec(query).first()
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found")
+
+        book = self._build_book_response(book)
+        total_price = book.current_price * quantity
+        return {
+            "book_id": book_id,
+            "quantity": quantity,
+            "total_price": total_price,
+        }

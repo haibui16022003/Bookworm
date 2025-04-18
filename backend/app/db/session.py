@@ -36,6 +36,7 @@ def create_fake_data():
         UserModel,
         ReviewModel
     )
+    from app.core.security.password import hash_password
 
     with Session(engine) as session:
         print("Creating fake categories...")
@@ -185,7 +186,7 @@ def create_fake_data():
             first_name="Admin",
             last_name="User",
             email="admin@example.com",
-            password="adminpassword",
+            password=hash_password("adminpassword"),
             admin=True
         )
         session.add(admin)

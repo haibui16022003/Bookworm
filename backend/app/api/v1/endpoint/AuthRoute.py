@@ -61,9 +61,31 @@ async def login(
         secure=False
     )
 
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        expires=cookies_expires,
+        samesite="lax",
+        secure=False
+    )
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": user
     }
 
+
+@router.post("/logout")
+async def logout(
+    response: Response
+) -> Dict:
+    """
+    Logout and clear the cookies
+    :param response: Response object to clear cookies
+    :return: None
+    """
+    response.delete_cookie(key="refresh_token")
+    response.delete_cookie(key="access_token")
+    return {"message": "Logged out successfully"}
