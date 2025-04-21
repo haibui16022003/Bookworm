@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from app.controllers.BookController import BookController
 from app.schema.BookSchema import BookResponse
@@ -7,12 +7,13 @@ from app.schema.BookSchema import BookResponse
 
 router = APIRouter(prefix="/books", tags=["Books"])
 
-@router.get("/", response_model=List[BookResponse])
+@router.get("/", response_model=Dict)
 async def get_books(
     offset: int = Query(0, description="Offset for pagination"),
     limit: int = Query(10, description="Limit for pagination"),
     category_id: Optional[int] = Query(None, description="Filter by category ID"),
     author_id: Optional[int] = Query(None, description="Filter by author ID"),
+    desc_price: bool = Query(False, description="Sort by price descending"),
     book_controller: BookController = Depends(BookController),
 ):
     """
@@ -21,27 +22,39 @@ async def get_books(
     :param limit: Page size
     :param category_id: Filter by category ID
     :param author_id: Filter by author ID
+    :param desc_price: Sort by price descending
     :param book_controller: BookController dependency
-    :return: List of BookResponse objects
+    :return: Dictionary containing page number, total books, and list of BookResponse objects
     """
-    books = book_controller.get_all_books(offset=offset, limit=limit, category_id=category_id, author_id=author_id)
-    return books
+    response = book_controller.get_all_books(
+        offset=offset, limit=limit, category_id=category_id, author_id=author_id, desc_price=desc_price
+    )
+    return response
 
 
-@router.get("/discounts", response_model=List[BookResponse])
+@router.get("/discounts", response_model=Dict)
 async def get_discount_books(
     offset: int = Query(0, description="Offset for pagination"),
     limit: int = Query(10, description="Limit for pagination"),
+    category_id: Optional[int] = Query(None, description="Filter by category ID"),
+    author_id: Optional[int] = Query(None, description="Filter by author ID"),
     book_controller: BookController = Depends(BookController),
 ):
     """
     Get all books that are currently on discount.
     :param offset: Offset for pagination
     :param limit: Page size
+    :param category_id: Filter by category ID
+    :param author_id: Filter by author ID
     :param book_controller: BookController dependency
-    :return: List of BookResponse objects
+    :return: Dictionary containing page number, total books, and list of BookResponse objects
     """
-    books = book_controller.get_discount_books(offset=offset, limit=limit)
+    books = book_controller.get_discount_books(
+        offset=offset,
+        limit=limit,
+        category_id=category_id,
+        author_id=author_id,
+    )
     return books
 
 
