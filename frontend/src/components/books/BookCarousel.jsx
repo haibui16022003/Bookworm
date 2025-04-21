@@ -7,7 +7,7 @@ const BookCarousel = ({ books, title, cardsPerView = 4 }) => {
   const carouselRef = useRef(null);
   const autoplayRef = useRef(null);
 
-  const viewAllLink = "/";
+  const viewAllLink = "/shop?sortBy=on-sale";
 
   // Handle responsiveness
   useEffect(() => {
@@ -65,12 +65,12 @@ const BookCarousel = ({ books, title, cardsPerView = 4 }) => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 px-4 md:px-8 pt-8 pb-4">
         <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
         {viewAllLink && (
-          <a
-            href={viewAllLink}
-            className="text-sm px-3 py-1 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition"
+          <button
+            onClick={() => window.location.href = viewAllLink}
+            className="text-sm px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition"
           >
             View All &rarr;
-          </a>
+          </button>
         )}
       </div>
       <div className="relative w-full flex justify-center items-center">
@@ -93,12 +93,13 @@ const BookCarousel = ({ books, title, cardsPerView = 4 }) => {
         {/* Carousel */}
         <div
           className="w-[90%] flex gap-4 overflow-hidden transition-transform duration-500 ease-in-out"
+          // style={{transform: `translateX(-${(100 / visibleCards) * currentIndex}%)`}}
           ref={carouselRef}
         >
           {visibleBooks.map((book, index) => (
             <div
               key={book.id}
-              className="flex-shrink-0"
+              className=""
               style={{
                 width: `${100 / visibleCards}%`,
                 transition: "transform 0.5s ease-in-out",
