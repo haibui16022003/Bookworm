@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from app.db.session import init_db
 from app.utils.middlewares.JWTMiddleware import JWTMiddleware
-from app.api.v1.endpoint import BookRoutes, UserRoute, AuthRoute, ReviewRoute
+from app.api.v1.endpoint import BookRoute, UserRoute, AuthRoute, ReviewRoute, AuthorRoute, CategoryRoute
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,6 +35,8 @@ app.add_middleware(
         "/api/v1/auth/login",
         "/api/v1/auth/register",
         "/api/v1/books",
+        "/api/v1/authors",
+        "/api/v1/categories",
         "/api/v1/reviews/{book_id}",
         "/docs",
         "/redoc",
@@ -44,10 +46,12 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(BookRoutes.router, prefix="/api/v1", tags=["Books"])
+app.include_router(BookRoute.router, prefix="/api/v1", tags=["Books"])
 app.include_router(UserRoute.router, prefix="/api/v1", tags=["Users"])
 app.include_router(AuthRoute.router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(ReviewRoute.router, prefix="/api/v1", tags=["Reviews"])
+app.include_router(AuthorRoute.router, prefix="/api/v1", tags=["Authors"])
+app.include_router(CategoryRoute.router, prefix="/api/v1", tags=["Categories"])
 
 @app.get("/")
 def root():
