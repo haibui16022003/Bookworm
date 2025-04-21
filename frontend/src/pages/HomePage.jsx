@@ -7,8 +7,18 @@ import ErrorMessage from '../components/ui/ErrorMessage';
 import { useOnSaleBooks, useFeaturedBooks } from '../hooks/useBooks';
 
 const HomePage = () => {
-  const { books: onSaleBooks, loading: loadingOnSale, error: errorOnSale } = useOnSaleBooks();
-  const { books: featuredBooks, loading: loadingFeatured, error: errorFeatured } = useFeaturedBooks();
+  const { 
+    books: onSaleBooks, 
+    loading: loadingOnSale, 
+    error: errorOnSale,
+  } = useOnSaleBooks(); 
+
+  const { 
+    books: featuredBooks, 
+    loading: loadingFeatured, 
+    error: errorFeatured 
+  } = useFeaturedBooks();
+
 
   return (
     <Layout>
@@ -21,7 +31,7 @@ const HomePage = () => {
           <BookCarousel 
             title="On Sale" 
             books={onSaleBooks} 
-            viewAllLink="/shop?sale=true" 
+            viewAllLink="/shop?sortBy=on-sale" 
           />
         ) : null}
         

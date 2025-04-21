@@ -15,12 +15,14 @@ const AboutPage = () => {
         <div className="flex flex-col items-center mb-12">
           <h2 className="text-3xl font-bold mb-8">Welcome to Bookworm</h2>
           
+          {/* Welcome part */}
           <p className="text-center max-w-3xl text-gray-700 mb-12">
             "Bookworm is an independent New York bookstore and language school with 
             locations in Manhattan and Brooklyn. We specialize in travel books and language 
             classes."
           </p>
           
+          {/* Our story part */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 w-full">
             <div>
               <h3 className="text-2xl font-bold mb-4">Our Story</h3>
@@ -37,6 +39,7 @@ const AboutPage = () => {
               </p>
             </div>
             
+            {/* Our vision part */}
             <div>
               <h3 className="text-2xl font-bold mb-4">Our Vision</h3>
               <p className="text-gray-700 mb-4">

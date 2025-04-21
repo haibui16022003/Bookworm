@@ -5,14 +5,14 @@ const TabSection = ({ tabs, children }) => {
   
   return (
     <div>
-      <div className="flex gap-4 mb-4">
+      <div className="flex gap-4 mb-4 justify-center">
         {tabs.map((tab, index) => (
           <button
             key={index}
-            className={`px-4 py-2 text-sm ${
+            className={`px-4 py-2 text-sm rounded-lg ${
               activeTab === index 
                 ? 'bg-gray-300 text-gray-800' 
-                : 'bg-gray-200 text-gray-500'
+                : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
             }`}
             onClick={() => setActiveTab(index)}
           >
