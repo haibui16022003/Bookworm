@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuthors } from '../hooks/useAuthor';
-import useCategories from '../hooks/useCategory';
+import { useCategories } from '../hooks/useCategory';
 import { useBooks, useOnSaleBooks } from '../hooks/useBooks';
 import Layout from '../components/layout/Layout';
 import BookCard from '../components/books/BookCard';

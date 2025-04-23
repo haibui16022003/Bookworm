@@ -1,34 +1,51 @@
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import ShopPage from './pages/ShopPage';
 import AboutPage from './pages/AboutPage';
 import SignInPage from './pages/SignInPage';
 import NotFoundPage from './pages/NotFound';
+import SignUpPage from './pages/SignUpPage';
 
 import AuthProvider from './context/AuthContext';
 
 // Hard-coded components to avoid errors
 const BookDetailPage = () => <div>Book Detail Page</div>;
 const CartPage = () => <div>Cart Page</div>;
-const RegisterPage = () => <div>Register Page</div>;
+const ProfilePage = () => <div>Profile Page</div>;
+const ChangePasswordPage = () => <div>Change Password Page</div>;
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
+
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/shop" element={<ShopPage />} />
-          <Route path="/book/:id" element={<BookDetailPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/login" element={<SignInPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/shop" element={<ShopPage />} />
+            <Route path="/book/:id" element={<BookDetailPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/login" element={<SignInPage />} />
+            <Route path="/register" element={<SignUpPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/change-password" element={<ChangePasswordPage />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 export default App;

@@ -9,7 +9,7 @@ const FeaturedBooks = ({ books: initialBooks }) => {
   // const [activeTab, setActiveTab] = useState('recommended');
   
   const { books: popularBooks, popularLoading, popularError } = useBooks(0, 8);
-  const { books: recommendedBooks, recommendedLoading, recommendedError} = useBooks(8, 16);
+  const { books: recommendedBooks, recommendedLoading, recommendedError} = useBooks(8, 8);
   
   const tabs = ['Recommended', 'Popular'];
 
