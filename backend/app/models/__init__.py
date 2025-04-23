@@ -1,10 +1,11 @@
-from AuthorModel import AuthorModel
-from BookModel import BookModel
-from CategoryModel import CategoryModel
-from DiscountModel import DiscountModel
-from OrderModel import OrderModel, OrderItemModel
-from UserModel import UserModel
-from ReviewModel import ReviewModel
+from app.models.AuthorModel import AuthorModel
+from app.models.BookModel import BookModel
+from app.models.CategoryModel import CategoryModel
+from app.models.DiscountModel import DiscountModel
+from app.models.OrderModel import OrderModel, OrderItemModel
+from app.models.UserModel import UserModel
+from app.models.ReviewModel import ReviewModel
+
 
 __all__ = [
     "AuthorModel",
