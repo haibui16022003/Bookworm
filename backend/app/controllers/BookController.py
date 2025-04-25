@@ -4,7 +4,7 @@ from datetime import date
 from sqlalchemy import select, and_, or_, func
 from sqlmodel import Session, SQLModel
 
-from app.models import BookModel, AuthorModel, DiscountModel
+from app.models import BookModel, AuthorModel, DiscountModel, CategoryModel
 from app.schema.BookSchema import BookResponse
 from app.db.session import get_session
 
@@ -18,12 +18,12 @@ class BookController:
         """Helper function to build a BookResponse object."""
         (
             book_id,
-            book_category_id,
             book_title,
             book_summary,
             book_price,
             book_cover_photo,
             author_name,
+            category_name
         ) = book
         today = date.today()
         discount_query = select(DiscountModel).where(
@@ -37,13 +37,13 @@ class BookController:
         current_price = discount.discount_price if discount else book_price
         return BookResponse(
             id=book_id,
-            category_id = book_category_id,
             book_title=book_title,
             book_summary=book_summary,
             original_price=book_price,
             current_price=current_price,
             book_cover_photo=book_cover_photo,
             author_name=author_name,
+            category_name= category_name
         )
 
 
@@ -53,14 +53,15 @@ class BookController:
         return (
             select(
                 BookModel.id,
-                BookModel.category_id,
                 BookModel.book_title,
                 BookModel.book_summary,
                 BookModel.book_price,
                 BookModel.book_cover_photo,
                 AuthorModel.author_name,
+                CategoryModel.category_name
             )
             .join(AuthorModel, BookModel.author_id == AuthorModel.id)
+            .join(CategoryModel, BookModel.category_id == CategoryModel.id)
         )
 
 
@@ -90,8 +91,6 @@ class BookController:
         if author_id:
             query = query.where(BookModel.author_id == author_id)
             count_query = count_query.where(BookModel.author_id == author_id)
-        if isinstance(desc_price, bool):
-            query = query.order_by(BookModel.book_price.desc()) if desc_price else query.order_by(BookModel.book_price)
 
         total = self.db.exec(count_query).scalar_one()
 
@@ -99,6 +98,9 @@ class BookController:
 
         page_num = offset // limit + 1
         data = [self._build_book_response(book) for book in books]
+
+        if not desc_price is None:
+            data.sort(key=lambda x: x.current_price, reverse=desc_price) if desc_price else data.sort(key=lambda x: x.current_price)
 
         return {
             "page_num": page_num,

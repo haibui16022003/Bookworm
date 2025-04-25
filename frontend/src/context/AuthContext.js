@@ -1,18 +1,55 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchData, postData } from '../services/api/ApiService';
 
 const AuthContext = createContext();
 
+const saveAuthData = (userData, accessToken) => {
+  if (userData) localStorage.setItem('user', JSON.stringify(userData));
+  if (accessToken) localStorage.setItem('access_token', accessToken);
+};
+
+const clearAuthData = () => {
+  localStorage.removeItem('user');
+  localStorage.removeItem('access_token');
+};
+
+
+const loadUserFromStorage = () => {
+  try {
+    const userData = localStorage.getItem('user');
+    return userData ? JSON.parse(userData) : null;
+  } catch (e) {
+    console.error('Failed to parse user data from localStorage', e);
+    return null;
+  }
+};
+
 const AuthProvider = ({ children }) => {
   const queryClient = useQueryClient();
+
+  // Initialize with data from localStorage if available
+  useEffect(() => {
+    const storedUser = loadUserFromStorage();
+    if (storedUser) {
+      queryClient.setQueryData(['auth-user'], storedUser);
+    }
+  }, [queryClient]);
 
   const { data: user, isLoading: isUserLoading, error: userError, refetch: userRefetch } = useQuery({
     queryKey: ['auth-user'],
     queryFn: () => fetchData('/auth/me', {}, true),
-    onError: false,
+    onSuccess: (userData) => {
+      // Update localStorage when we get fresh user data
+      if (userData) saveAuthData(userData, null);
+    },
+    onError: () => {
+      // Optionally clear user data on error
+      clearAuthData();
+    },
     staleTime: 1000 * 60 * 5,
     retry: false,
+    initialData: loadUserFromStorage(),
   });
 
   // Login mutation
@@ -28,6 +65,7 @@ const AuthProvider = ({ children }) => {
       return postData('/auth/login/', formData, false);
     },
     onSuccess: (data) => {
+      saveAuthData(data.user, data.access_token);
       queryClient.setQueryData(['auth-user'], data.user);
       return data;
     }
@@ -41,6 +79,11 @@ const AuthProvider = ({ children }) => {
     mutationFn: () => postData('/auth/logout/', {}, true),
     onSuccess: () => {
       queryClient.setQueryData(['auth-user'], null);
+      clearAuthData();
+    },
+    onError: () => {
+      queryClient.setQueryData(['auth-user'], null);
+      clearAuthData();
     }
   });
 
@@ -110,4 +153,4 @@ export const useAuth = () => {
   return useContext(AuthContext);
 };
 
-export default AuthProvider ;
+export default AuthProvider;

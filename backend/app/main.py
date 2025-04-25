@@ -29,21 +29,7 @@ app.add_middleware(
 )
 
 # Add JWT middleware
-app.add_middleware(
-    JWTMiddleware,
-    excluded_paths=[
-        "/api/v1/auth/login",
-        "/api/v1/auth/register",
-        "/api/v1/books",
-        "/api/v1/authors",
-        "/api/v1/categories",
-        "/api/v1/reviews/{book_id}",
-        "/docs",
-        "/redoc",
-        "/openapi.json"
-    ],
-    protected_paths=["/api"]
-)
+app.add_middleware(JWTMiddleware)
 
 # Include routers
 app.include_router(BookRoute.router, prefix="/api/v1", tags=["Books"])

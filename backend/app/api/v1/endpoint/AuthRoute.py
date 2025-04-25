@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Optional, Dict
 from datetime import datetime, timezone, timedelta
 
 from app.controllers.AuthController import AuthController
 from app.core.config import settings
-from app.core.security import get_token, create_access_token, create_refresh_token
+from app.core.security.app_token import create_access_token, create_refresh_token, decode_token
 from app.schema.UserSchema import UserRegister, UserResponse
 
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 async def register(
     user_data: UserRegister,
     auth_controller: AuthController = Depends()
-)-> Optional[UserResponse]:
+) -> Optional[UserResponse]:
     """
     Register a new user
     :param user_data: User registration data
@@ -33,8 +33,8 @@ async def login(
 ) -> Optional[Dict]:
     """
     Login to get access and refresh tokens
-        - Refresh toke is set in the cookie
-        - Access token is returned in the response
+        - Refresh token is set in the HTTP-only cookie
+        - Access token is returned in the response JSON for client-side storage
     :param response: Response object to set cookies
     :param form_data: Form data containing email and password
     :param auth_controller: AuthController dependency
@@ -48,32 +48,55 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = create_access_token(data={"sub": user.email, "is_admin": user.admin})
+    access_token = create_access_token(data={"sub": user.email, "is_admin": user.is_admin})
     refresh_token = create_refresh_token(data={"sub": user.email})
 
+    # Set refresh token in HTTP-only cookie
     cookies_expires = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        expires=cookies_expires,
+        expires=cookies_expires.timestamp(),
         samesite="lax",
-        secure=False
+        secure=True
     )
 
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        expires=cookies_expires,
-        samesite="lax",
-        secure=False
-    )
-
+    # Return access token in response body - client will store in localStorage
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": user
+    }
+
+
+@router.post("/refresh")
+async def refresh_token(
+    request: Request,
+    auth_controller: AuthController = Depends()
+) -> Optional[Dict]:
+    """
+    Refresh access token using refresh token cookie
+    :param request: Request object to get cookies
+    :param auth_controller: AuthController dependency
+    :return: Dictionary containing new access token
+    """
+    # Validate refresh token and get user
+    refresh_tk = request.cookies.get("refresh_token")
+    if not refresh_tk:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = auth_controller.get_user_by_refresh_token(refresh_tk)
+    # Generate new tokens
+    access_token = create_access_token(data={"sub": user.email, "is_admin": user.is_admin})
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
     }
 
 
@@ -82,10 +105,9 @@ async def logout(
     response: Response
 ) -> Dict:
     """
-    Logout and clear the cookies
-    :param response: Response object to clear cookies
-    :return: None
+    Logout and clear the refresh token cookie
+    :param response: Response object to set cookies
+    :return: Success message
     """
     response.delete_cookie(key="refresh_token")
-    response.delete_cookie(key="access_token")
     return {"message": "Logged out successfully"}

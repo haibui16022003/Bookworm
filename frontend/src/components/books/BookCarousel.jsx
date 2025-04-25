@@ -30,7 +30,7 @@ const BookCarousel = ({ books, title, cardsPerView = 4 }) => {
   useEffect(() => {
     autoplayRef.current = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % totalItems);
-    }, 3000);
+    }, 10000);
 
     return () => clearInterval(autoplayRef.current);
   }, [totalItems]);
@@ -40,7 +40,7 @@ const BookCarousel = ({ books, title, cardsPerView = 4 }) => {
   const handleMouseLeave = () => {
     autoplayRef.current = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % totalItems);
-    }, 3000);
+    }, 10000);
   };
 
   const nextSlide = () => {

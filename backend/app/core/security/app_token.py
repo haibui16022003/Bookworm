@@ -52,3 +52,8 @@ def create_refresh_token(
     except jwt.PyJWTError as e:
         raise ValueError(f"Token generation failed: {e}")
     return encoded_refresh_jwt
+
+
+def decode_token(token: str):
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    return payload

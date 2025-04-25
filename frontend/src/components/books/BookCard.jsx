@@ -25,7 +25,11 @@ const BookCard = ({ book }) => {
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-white text-sm">Book Image</span>
+            <img
+              src="/images/placeholder.png"
+              alt={book_title || "Book Cover"}
+              className="w-full h-full object-contain p-4"
+            />
           )}
         </div>
 

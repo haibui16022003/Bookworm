@@ -58,6 +58,36 @@ async def get_discount_books(
     return books
 
 
+# @router.get("/recommended", response_model=List[BookResponse])
+# async def get_recommended_books(
+#     limit: int = Query(8, description="Number of recommended books to return"),
+#     book_controller: BookController = Depends(BookController),
+# ):
+#     """
+#     Get recommended books based on highest average rating and lowest price.
+#     :param limit: Number of books to return (default 8)
+#     :param book_controller: BookController dependency
+#     :return: List of BookResponse objects
+#     """
+#     books = book_controller.get_recommended_books(limit=limit)
+#     return books
+#
+#
+# @router.get("/popular", response_model=List[BookResponse])
+# async def get_popular_books(
+#     limit: int = Query(8, description="Number of popular books to return"),
+#     book_controller: BookController = Depends(BookController),
+# ):
+#     """
+#     Get popular books based on most reviews and lowest price.
+#     :param limit: Number of books to return (default 8)
+#     :param book_controller: BookController dependency
+#     :return: List of BookResponse objects
+#     """
+#     books = book_controller.get_popular_books(limit=limit)
+#     return books
+#
+
 @router.get("/search", response_model=List[BookResponse])
 async def search_books(
     query: str,
@@ -91,4 +121,3 @@ async def get_book_by_id(
     """
     book = book_controller.get_book_by_id(book_id)
     return book
-
