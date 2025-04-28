@@ -21,4 +21,16 @@ class OrderItemSchema(BaseModel):
     quantity: int = Field(..., gt=0)
     price: float = Field(..., gt=0)
 
+class OrderResponse(OrderSchema):
+    """
+    Order Response Schema
+    """
+    id: int
+    order_items: list[OrderItemSchema] = Field(default_factory=list)
 
+
+class OrderCreate(OrderSchema):
+    """
+    Order Create Schema
+    """
+    order_items: list[OrderItemSchema] = Field(default_factory=list)

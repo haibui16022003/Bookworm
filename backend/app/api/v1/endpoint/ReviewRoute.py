@@ -6,11 +6,11 @@ from app.schema.ReviewSchema import ReviewResponse, ReviewCreate
 
 router = APIRouter(prefix="/reviews", tags=["Reviews"])
 
-@router.get("/{book_id}", response_model=Dict)
+@router.get("/book/{book_id}", response_model=Dict)
 async def get_book_reviews(
     book_id: int,
     offset: int = Query(0, description="Offset for pagination"),
-    limit: int = Query(10, description="Limit for pagination"),
+    limit: int = Query(20, description="Limit for pagination"),
     rating_star: Optional[int] = Query(None, description="Filter by rating star"),
     is_desc: bool = Query(True, description="Sort order"),
     review_controller: ReviewController = Depends(ReviewController),

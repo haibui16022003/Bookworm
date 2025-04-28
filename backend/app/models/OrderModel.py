@@ -8,7 +8,7 @@ class OrderModel(SQLModel, table=True):
     id: int = Field(sa_column=Column(BIGINT, primary_key=True, autoincrement=True))
     user_id: int = Field(foreign_key="user.id")
     order_date: datetime = Field(sa_column=Column(DATE))
-    order_amount: float = Field(sa_column=Column(Numeric(8, 2)))
+    order_amount: float = Field(sa_column=Column(Numeric(8, 2))) # Total price of the order
 
 
 class OrderItemModel(SQLModel, table=True):

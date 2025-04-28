@@ -4,7 +4,7 @@ import BookCarousel from '../components/books/BookCarousel';
 import FeaturedBooks from '../components/books/FeaturedBooks';
 import Loading from '../components/ui/Loading';
 import ErrorMessage from '../components/ui/ErrorMessage';
-import { useOnSaleBooks, useFeaturedBooks } from '../hooks/useBooks';
+import { useOnSaleBooks, useFeaturedBooks, useTopDiscountedBooks } from '../hooks/useBooks';
 
 const HomePage = () => {
   const {
@@ -12,6 +12,12 @@ const HomePage = () => {
     loading: loadingOnSale,
     error: errorOnSale,
   } = useOnSaleBooks();
+  
+  const {
+    books: topDiscountedBooks,
+    loading: loadingTopDiscounted,
+    error: errorTopDiscounted,
+  } = useTopDiscountedBooks(10);
   
   const {
     books: featuredBooks,
@@ -22,6 +28,20 @@ const HomePage = () => {
   return (
     <Layout>
       <div className="py-4">
+        {loadingTopDiscounted ? (
+          <Loading />
+        ) : errorTopDiscounted ? (
+          <ErrorMessage message={errorTopDiscounted} />
+        ) : topDiscountedBooks.length > 0 ? (
+          <BookCarousel
+            title="On Sale"
+            books={topDiscountedBooks}
+            viewAllLink="/shop?sortBy=top-discounted"
+          />
+        ) : null}
+        
+        <div className="border-t border-gray-200 mt-6 mb-4"></div>
+
         {loadingOnSale ? (
           <Loading />
         ) : errorOnSale ? (

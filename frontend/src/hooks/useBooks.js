@@ -6,7 +6,8 @@ export const useBooks = (
   limit = 10,
   category_id = null,
   author_id = null,
-  desc_price = null
+  desc_price = null,
+  min_stars = null
 ) => {
   
   const params = {
@@ -14,7 +15,8 @@ export const useBooks = (
     limit,
     ...(category_id !== null && { category_id }),
     ...(author_id !== null && { author_id }),
-    ...(desc_price !== null && { desc_price })
+    ...(desc_price !== null && { desc_price }),
+    ...(min_stars !== null && { min_stars })
   };
 
   const queryKey = [
@@ -23,7 +25,8 @@ export const useBooks = (
     limit, 
     category_id, 
     author_id, 
-    desc_price
+    desc_price,
+    min_stars
   ];
 
   // Use React Query without auth
@@ -54,13 +57,15 @@ export const useOnSaleBooks = (
   offset = 0,
   limit = 10,
   category_id = null,
-  author_id = null
+  author_id = null,
+  min_stars = null
 ) => {
   const params = {
     offset,
     limit,
     ...(category_id !== null && { category_id }),
-    ...(author_id !== null && { author_id })
+    ...(author_id !== null && { author_id }),
+    ...(min_stars !== null && { min_stars })
   };
 
   const { 
@@ -68,7 +73,7 @@ export const useOnSaleBooks = (
     isLoading: loading, 
     error 
   } = useQuery({
-    queryKey: ['saleBooks', offset, limit, category_id, author_id],
+    queryKey: ['saleBooks', offset, limit, category_id, author_id, min_stars],
     queryFn: () => fetchData('/books/discounts', params, false), 
     staleTime: 60000,
   });
@@ -105,6 +110,70 @@ export const useBookDetails = (id) => {
   };
 };
 
-export const useFeaturedBooks = (limit = 8) => {
-  return useBooks(0, limit);
+export const useRecommendedBooks = (limit = 8) => {
+  const {
+    data: books, 
+    isLoading: loading, 
+    error 
+  } = useQuery({
+    queryKey: ['recommendedBooks', limit],
+    queryFn: () => fetchData('/books/recommended/', { limit }, false), // No auth required
+    staleTime: 60000, // 1 minute
+  });
+
+  return { 
+    books: books || [], 
+    loading, 
+    error: error?.message || null 
+  };
+};
+
+export const usePopularBooks = (limit = 8) => {
+  const {
+    data: books, 
+    isLoading: loading, 
+    error 
+  } = useQuery({
+    queryKey: ['popularBooks', limit],
+    queryFn: () => fetchData('/books/popular/', { limit }, false), // No auth required
+    staleTime: 60000, // 1 minute
+  });
+
+  return { 
+    books: books || [], 
+    loading, 
+    error: error?.message || null 
+  };
+};
+
+export const useTopDiscountedBooks = (limit = 10) => {
+  const {
+    data: books,
+    isLoading: loading,
+    error
+  } = useQuery({
+    queryKey: ['topDiscountedBooks', limit],
+    queryFn: () => fetchData('/books/top-discounted', { limit }, false), // No auth required
+    staleTime: 60000, // 1 minute
+  });
+
+  return {
+    books: books || [],
+    loading,
+    error: error?.message || null
+  };
+};
+
+export const useFeaturedBooks = () => {
+  const { books: recommendedBooks, loading: recommendedLoading, error: recommendedError } = useRecommendedBooks();
+  const { books: popularBooks, loading: popularLoading, error: popularError } = usePopularBooks();
+
+  return {
+    recommendedBooks,
+    recommendedLoading,
+    recommendedError,
+    popularBooks,
+    popularLoading,
+    popularError
+  };
 };

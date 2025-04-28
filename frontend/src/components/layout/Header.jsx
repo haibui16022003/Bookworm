@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AuthPopup from '../auth/AuthPopup';
 
@@ -11,7 +11,6 @@ const Header = () => {
   const [redirectPath, setRedirectPath] = useState('');
   const [localUser, setLocalUser] = useState(null);
   const dropdownRef = useRef(null);
-  const navigate = useNavigate();
 
   // Check for user in localStorage on initial render
   useEffect(() => {
@@ -30,8 +29,6 @@ const Header = () => {
     if (user) {
       setLocalUser(user);
     } else if (!isUserLoading) {
-      // Only clear localUser if we're not in a loading state
-      // This prevents flickering during authentication checks
       setLocalUser(null);
     }
   }, [user, isUserLoading]);
@@ -81,7 +78,6 @@ const Header = () => {
     setRedirectPath('');
   };
 
-  // Authentication status - consider both React state and localStorage
   const isAuthenticated = !!localUser;
 
   return (
@@ -156,7 +152,7 @@ const Header = () => {
               )}
             </div>
           ) : (
-            <a href="/login" onClick={handleAuthClick} className={navLinkClass}>Sign In</a>
+            <a href="/login" onClick={handleAuthClick} className="hover:underline">Sign In</a>
           )}
         </div>
 
@@ -217,19 +213,7 @@ const Header = () => {
                     <li><button onClick={() => {handleLogout(); toggleMenu();}} className="hover:underline">Logout</button></li>
                   </>
                 ) : (
-                  <li>
-                    <a 
-                      href="/login" 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleMenu();
-                        setAuthPopupOpen(true);
-                      }} 
-                      className={navLinkClass}
-                    >
-                      Sign In
-                    </a>
-                  </li>
+                  <a href="/login" onClick={handleAuthClick} className="hover:underline">Sign In</a>
                 )}
               </ul>
             </nav>
