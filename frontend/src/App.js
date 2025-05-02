@@ -6,7 +6,6 @@ import ShopPage from './pages/ShopPage';
 import AboutPage from './pages/AboutPage';
 import BookDetailPage from './pages/BookDetailPage';
 import NotFoundPage from './pages/NotFound';
-
 import AuthProvider from './context/AuthContext';
 
 // Hard-coded components to avoid errors

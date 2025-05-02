@@ -16,7 +16,7 @@ const BookCard = ({ book }) => {
   // Use the external image URL or fallback to a placeholder
   const imageUrl = book_cover_photo 
     ? book_cover_photo 
-    : 'https://picsum.photos/seed/placeholder/200/300';
+    : 'https://placehold.co/400x500/e2e8f0/cbd5e0?text=Image+Not+Available';
 
   return (
     <Link to={`/book/${id}`} className="block hover:opacity-80 transition">

@@ -28,6 +28,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             "/api/v1/auth/register",
             "/api/v1/auth/refresh",
             "/api/v1/books",
+            "/api/v1/reviews",
             "/api/v1/authors",
             "/api/v1/categories",
             "/docs",

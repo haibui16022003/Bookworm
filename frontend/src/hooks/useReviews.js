@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchData, postData } from '../services/api/ApiService.js';
 
-export const useReviews = (bookId, offset = 0, limit = 10, ratingStar = null, isDesc = true) => {
+export const useReviews = (bookId, offset = 0, limit = 10, ratingStar = null, isDesc = null) => {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

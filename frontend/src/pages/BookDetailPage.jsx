@@ -1,189 +1,270 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { Minus, Plus } from 'lucide-react';
+
 import Layout from '../components/layout/Layout';
+import { useBookDetails } from '../hooks/useBooks';
+import CustomerReviews from '../components/reviews/BookReview'; 
+import WriteReview from '../components/reviews/WriteReview';    
+
+const BookDetails = ({ book }) => {
+  if (!book) return null;
+
+  return (
+    <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+      <div className="flex-shrink-0 w-full md:w-1/3 lg:w-2/5">
+        <div className="bg-gray-200 w-full aspect-[3/4] rounded-lg shadow-md mb-3 overflow-hidden">
+          <img
+            src={book.book_cover_photo}
+            alt={`Cover of ${book.book_title}`}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = 'https://placehold.co/400x500/e2e8f0/cbd5e0?text=Image+Not+Available';
+            }}
+          />
+        </div>
+        <p className="text-sm text-gray-600 italic text-center md:text-left">By {book.author_name}</p>
+      </div>
+
+      <div className="flex-grow">
+        <h2 className="text-3xl font-bold mb-3 text-gray-800">{book.book_title}</h2>
+        <p className="text-gray-600 mb-4 leading-relaxed">{book.book_summary}</p>
+      </div>
+    </div>
+  );
+};
+
+const AddToCart = ({ book }) => {
+  const [quantity, setQuantity] = useState(1);
+  const [existingQuantity, setExistingQuantity] = useState(0);
+  const [message, setMessage] = useState("");
+  const MAX_QUANTITY = 8;
+
+  useEffect(() => {
+    // Check if the book is already in the cart when component mounts or book changes
+    if (book) {
+      const cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+      const existingItem = cart.find(item => item.book_id === book.id);
+      
+      if (existingItem) {
+        setExistingQuantity(existingItem.quantity);
+      } else {
+        setExistingQuantity(0);
+      }
+    }
+  }, [book]);
+
+  if (!book) return null;
+
+  const incrementQuantity = () => {
+    // Calculate the total quantity after increment
+    const newQuantity = quantity + 1;
+    const totalQuantity = newQuantity + existingQuantity;
+    
+    if (totalQuantity <= MAX_QUANTITY) {
+      setQuantity(newQuantity);
+      setMessage("");
+    } else {
+      setMessage(`You can only add up to ${MAX_QUANTITY} copies of this book`);
+    }
+  };
+
+  const decrementQuantity = () => {
+    setQuantity(prev => (prev > 1 ? prev - 1 : 1));
+    setMessage("");
+  };
+
+  const handleQuantityChange = (e) => {
+    const value = parseInt(e.target.value);
+    if (!isNaN(value) && value > 0) {
+      const totalQuantity = value + existingQuantity;
+      
+      if (totalQuantity <= MAX_QUANTITY) {
+        setQuantity(value);
+        setMessage("");
+      } else {
+        setQuantity(MAX_QUANTITY - existingQuantity > 0 ? MAX_QUANTITY - existingQuantity : 1);
+        setMessage(`You can only add up to ${MAX_QUANTITY} copies of this book`);
+      }
+    } else if (e.target.value === '') {
+      setQuantity('');
+      setMessage("");
+    }
+  };
+
+  const handleBlur = () => {
+    if (quantity === '' || quantity < 1) {
+      setQuantity(1);
+    }
+  };
+
+  const addToCart = () => {
+    // Get current cart from session storage
+    const cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+    
+    // Check if book already exists in cart
+    const existingItemIndex = cart.findIndex(item => item.book_id === book.id);
+    
+    // Calculate the new quantity
+    const newQuantity = existingItemIndex >= 0 
+      ? cart[existingItemIndex].quantity + quantity
+      : quantity;
+    
+    // Make sure it doesn't exceed the maximum
+    if (newQuantity > MAX_QUANTITY) {
+      setMessage(`Cart already contains ${existingQuantity} of this book. Cannot add more than ${MAX_QUANTITY} in total.`);
+      return;
+    }
+    
+    // Prepare the order item
+    const orderItem = {
+      book_id: book.id,
+      quantity: newQuantity,
+      price: book.current_price
+    };
+    
+    // Update or add the item
+    if (existingItemIndex >= 0) {
+      cart[existingItemIndex] = orderItem;
+    } else {
+      cart.push(orderItem);
+    }
+    
+    // Save to session storage
+    sessionStorage.setItem("cart", JSON.stringify(cart));
+    
+    // Update the existing quantity
+    setExistingQuantity(newQuantity);
+    setQuantity(1);
+    setMessage("Added to cart successfully!");
+  };
+
+  const discountedPrice = book.current_price?.toFixed(2) || 'N/A';
+  const originalPrice = book.original_price?.toFixed(2);
+  const showOriginalPrice = originalPrice && book.current_price < book.original_price;
+
+  const remainingQuantity = MAX_QUANTITY - existingQuantity;
+
+  return (
+    <div>
+      <div className="flex items-baseline mb-4">
+        <span className="text-2xl font-semibold text-black mr-3">${discountedPrice}</span>
+        {showOriginalPrice && (
+          <span className="text-lg text-gray-400 line-through">${originalPrice}</span>
+        )}
+      </div>
+
+      {existingQuantity > 0 && (
+        <div className="mb-3 text-sm text-blue-600">
+          You already have {existingQuantity} of this book in your cart.
+        </div>
+      )}
+
+      {remainingQuantity > 0 ? (
+        <>
+          <div className="mb-6">
+            <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
+              Quantity {remainingQuantity < MAX_QUANTITY && `(Max: ${remainingQuantity} more)`}
+            </label>
+            <div className="flex items-center border border-gray-300 rounded-md overflow-hidden w-full">
+              <button
+                onClick={decrementQuantity}
+                className="flex items-center justify-center w-10 h-10 text-gray-600 hover:bg-gray-100 focus:outline-none"
+                aria-label="Decrease quantity"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <input
+                type="text"
+                id="quantity"
+                name="quantity"
+                value={quantity}
+                onChange={handleQuantityChange}
+                onBlur={handleBlur}
+                className="flex-1 text-center text-lg focus:outline-none h-10 border-l border-r border-gray-300"
+                min="1"
+                max={remainingQuantity}
+              />
+              <button
+                onClick={incrementQuantity}
+                className="flex items-center justify-center w-10 h-10 text-gray-600 hover:bg-gray-100 focus:outline-none"
+                aria-label="Increase quantity"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <button 
+            onClick={addToCart}
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-md transition duration-200 focus:outline-none"
+          >
+            Add to cart
+          </button>
+        </>
+      ) : (
+        <div className="w-full bg-gray-100 text-gray-800 font-semibold py-3 px-6 rounded-md border border-gray-300 text-center">
+          Maximum quantity reached in cart
+        </div>
+      )}
+
+      {message && (
+        <div className={`mt-2 text-sm ${message.includes("successfully") ? "text-green-600" : "text-red-600"}`}>
+          {message}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const BookInformation = ({ bookId }) => {
+  const { book, loading, error } = useBookDetails(bookId);
+
+  if (loading) return <div className="text-center py-12 text-gray-500">Loading book information...</div>;
+  if (error) return <div className="text-center py-12 text-red-600">Error loading book details: {error}</div>;
+  if (!book) return <div className="text-center py-12 text-gray-500">No book information found.</div>;
+
+  return (
+    <div className="px-4 sm:px-6 lg:px-8 py-8">
+      <div className="text-sm text-gray-500 mb-4 uppercase tracking-wider">
+        {book.category_name || 'Uncategorized'}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-8">
+        {/* Left side: BookDetails */}
+        <div className="lg:col-span-7">
+          <BookDetails book={book} />
+        </div>
+
+        {/* Right side: AddToCart*/}
+        <div className="lg:col-span-3 space-y-6">
+          <AddToCart book={book} />
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 pt-8">
+        {/* Left side: Customer Review */}
+        <div className="lg:col-span-7">
+          <CustomerReviews bookId={bookId} />
+        </div>
+
+        {/* Right side: WriteReview*/}
+        <div className="lg:col-span-3 space-y-6">
+          <WriteReview bookId={bookId}/>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 const BookDetailPage = () => {
+  const { id } = useParams();
+
   return (
     <Layout>
-        <div className="container mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Column: Book Details */}
-        <div className="space-y-6">
-            {/* Category Name */}
-            <p className="text-sm text-gray-500 uppercase">Category Name</p>
-
-            {/* Book Image and Title */}
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-            <div className="w-48 h-64 bg-gray-200 rounded shadow-md">
-                {/* Placeholder for Book Image */}
-                <img
-                src="https://via.placeholder.com/192x256"
-                alt="Book Cover"
-                className="w-full h-full object-cover rounded"
-                />
-            </div>
-            <div>
-                <h2 className="text-2xl font-semibold">Book Title</h2>
-                <p className="text-gray-600 mt-2">
-                Book description lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Excepteur sint occaecat.
-                </p>
-                <div className="mt-4 space-y-1 text-sm text-gray-700">
-                <p><span className="font-semibold">"The must-million-copy bestseller"</span> - Soon to be a major film</p>
-                <p>A #1 National Bestseller and New York Times Bestseller</p>
-                <p><span className="font-semibold">"Painfully beautiful"</span> - New York Times</p>
-                <p><span className="font-semibold">"Unforgettable... as engrossing as it is moving"</span> - Daily Mail</p>
-                <p><span className="font-semibold">"A triumph"</span> - The Spectator</p>
-                <p><span className="font-semibold">"I can't even express how much I love this book"</span> - Reese Witherspoon</p>
-                </div>
-                <p className="text-sm text-gray-500 mt-4">By (author) Anna Banks</p>
-            </div>
-            </div>
-        </div>
-
-        {/* Right Column: Pricing and Add to Cart */}
-        <div className="space-y-6">
-            <div className="flex items-center gap-4">
-            <span className="text-lg font-semibold text-gray-800">$29.99</span>
-            <span className="text-sm text-gray-500 line-through">$40.00</span>
-            </div>
-
-            {/* Quantity and Add to Cart */}
-            <div className="flex items-center gap-4">
-            <label htmlFor="quantity" className="text-gray-700">Quantity</label>
-            <div className="relative">
-                <button className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 focus:outline-none">-</button>
-                <input
-                type="number"
-                id="quantity"
-                className="w-20 py-2 pl-8 pr-2 border border-gray-300 rounded text-center focus:outline-none focus:border-indigo-500"
-                value="1" // Initial quantity
-                min="1"
-                />
-                <button className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 focus:outline-none">+</button>
-            </div>
-            <button className="bg-indigo-600 text-white py-2 px-6 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                Add to cart
-            </button>
-            </div>
-
-            {/* Write a Review Section */}
-            <div className="border-t pt-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Write a Review</h3>
-            <textarea
-                className="w-full h-24 p-2 border border-gray-300 rounded focus:outline-none focus:border-indigo-500"
-                placeholder="Details please! Your review helps other shoppers."
-            ></textarea>
-            <div className="mt-3 flex items-center justify-between">
-                <div>
-                <label htmlFor="rating" className="text-gray-700 text-sm">Select a rating star</label>
-                <select
-                    id="rating"
-                    className="ml-2 py-1 px-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-indigo-500"
-                >
-                    <option>1 Star</option>
-                    <option>2 Stars</option>
-                    <option>3 Stars</option>
-                    <option>4 Stars</option>
-                    <option>5 Stars</option>
-                </select>
-                </div>
-                <button className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                Submit Review
-                </button>
-            </div>
-            </div>
-        </div>
-
-        {/* Customer Reviews Section */}
-        <div className="col-span-1 lg:col-span-2 border-t pt-6 mt-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Customer Reviews <span className="text-sm text-gray-500">(Filtered by 5 star)</span></h2>
-            <div className="flex items-center justify-between mb-4">
-            <p className="text-gray-700">
-                <span className="font-semibold">4.6 Star</span>
-                <span className="text-sm text-gray-500"> (12,345)</span>
-                <span className="text-xs text-gray-500"> | </span>
-                <span className="text-xs text-indigo-600 cursor-pointer hover:underline">5 star (10,000)</span>
-                <span className="text-xs text-gray-500"> | </span>
-                <span className="text-xs text-indigo-600 cursor-pointer hover:underline">4 star (2,000)</span>
-                <span className="text-xs text-gray-500"> | </span>
-                <span className="text-xs text-indigo-600 cursor-pointer hover:underline">3 star (300)</span>
-                <span className="text-xs text-gray-500"> | </span>
-                <span className="text-xs text-indigo-600 cursor-pointer hover:underline">2 star (45)</span>
-                <span className="text-xs text-gray-500"> | </span>
-                <span className="text-xs text-indigo-600 cursor-pointer hover:underline">1 star (200)</span>
-            </p>
-            <p className="text-sm text-gray-500">Showing 1-12 of 3154 reviews</p>
-            </div>
-
-            <div className="flex items-center gap-4 mb-4">
-            <div className="relative">
-                <select className="py-2 px-4 border border-gray-300 rounded focus:outline-none focus:border-indigo-500 text-sm appearance-none pr-8">
-                <option>Sort by date: newest to oldest</option>
-                <option>Sort by date: oldest to newest</option>
-                <option>Sort by rating: highest to lowest</option>
-                <option>Sort by rating: lowest to highest</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-2 text-gray-500 pointer-events-none">
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"></path></svg>
-                </div>
-            </div>
-            <button className="bg-gray-200 text-gray-700 py-2 px-4 rounded-md text-sm focus:outline-none">Show 20 <svg className="w-4 h-4 inline-block ml-1 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"></path></svg></button>
-            </div>
-
-            {/* Individual Reviews */}
-            <div className="space-y-4">
-            <div className="border-b pb-4">
-                <h4 className="font-semibold">Review Title | <span className="text-sm text-yellow-500">5 stars</span></h4>
-                <p className="text-gray-700 text-sm">Review content. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-                <p className="text-gray-500 text-xs mt-1">Nom Doe, 12 April 2021</p>
-            </div>
-            <div className="border-b pb-4">
-                <h4 className="font-semibold">Amazing Story! You will LOVE it | <span className="text-sm text-yellow-500">5 stars</span></h4>
-                <p className="text-gray-700 text-sm">Such an incredibly complex story! I had to buy it because there was a waiting list of 30+ at the library for this book. Thrilled that I made the purchase.</p>
-                <p className="text-gray-500 text-xs mt-1">Jane Smith, 12 April 2021</p>
-            </div>
-            {/* Repeat review structure */}
-            <div className="border-b pb-4">
-                <h4 className="font-semibold">Amazing Story! You will LOVE it | <span className="text-sm text-yellow-500">5 stars</span></h4>
-                <p className="text-gray-700 text-sm">Such an incredibly complex story! I had to buy it because there was a waiting list of 30+ at the library for this book. Thrilled that I made the purchase.</p>
-                <p className="text-gray-500 text-xs mt-1">Jane Smith, 12 April 2021</p>
-            </div>
-            <div className="border-b pb-4">
-                <h4 className="font-semibold">Amazing Story! You will LOVE it | <span className="text-sm text-yellow-500">5 stars</span></h4>
-                <p className="text-gray-700 text-sm">Such an incredibly complex story! I had to buy it because there was a waiting list of 30+ at the library for this book. Thrilled that I made the purchase.</p>
-                <p className="text-gray-500 text-xs mt-1">Jane Smith, 12 April 2021</p>
-            </div>
-            <div className="border-b pb-4">
-                <h4 className="font-semibold">Amazing Story! You will LOVE it | <span className="text-sm text-yellow-500">5 stars</span></h4>
-                <p className="text-gray-700 text-sm">Such an incredibly complex story! I had to buy it because there was a waiting list of 30+ at the library for this book. Thrilled that I made the purchase.</p>
-                <p className="text-gray-500 text-xs mt-1">Jane Smith, 12 April 2021</p>
-            </div>
-            </div>
-
-            {/* Pagination */}
-            <div className="flex justify-center mt-6">
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <a href="#" className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                Previous
-                </a>
-                {/* Current: "z-10 bg-indigo-50 border-indigo-500 text-indigo-600", Default: "bg-white border-gray-300 text-gray-500 hover:bg-gray-50" */}
-                <a href="#" aria-current="page" className="z-10 bg-indigo-50 border-indigo-500 text-indigo-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium focus:outline-none">
-                1
-                </a>
-                <a href="#" className="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium focus:outline-none">
-                2
-                </a>
-                <a href="#" className="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 hidden md:inline-flex relative items-center px-4 py-2 border text-sm font-medium focus:outline-none">
-                3
-                </a>
-                <span className="relative inline-flex items-center px-4 py-2 border-gray-300 bg-white text-sm font-medium text-gray-700">
-                ...
-                </span>
-                <a href="#" className="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium focus:outline-none">
-                Next
-                </a>
-            </nav>
-            </div>
-        </div>
-        </div>
+      <BookInformation bookId={id} />
     </Layout>
   );
 };

@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 const AuthPopup = ({ isOpen, onClose, redirectAfterAuth }) => {
   const { login, register } = useAuth();
   const [isLoginView, setIsLoginView] = useState(true);
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -44,8 +45,35 @@ const AuthPopup = ({ isOpen, onClose, redirectAfterAuth }) => {
       return false;
     }
     
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return false;
+    }
+    
+    if (password.length > 16) {
+      setError('Password must be no more than 16 characters');
+      return false;
+    }
+    
+    if (!firstName.trim()) {
+      setError('First name is required');
+      return false;
+    }
+    
+    if (!lastName.trim()) {
+      setError('Last name is required');
+      return false;
+    }
+    
+    if (!email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
       return false;
     }
     
@@ -83,7 +111,7 @@ const AuthPopup = ({ isOpen, onClose, redirectAfterAuth }) => {
     setLoading(true);
 
     try {
-      await register(name, email, password);
+      await register(firstName, lastName, email, password);
       setLoading(false);
       onClose();
       
@@ -93,7 +121,20 @@ const AuthPopup = ({ isOpen, onClose, redirectAfterAuth }) => {
       }
     } catch (err) {
       setLoading(false);
-      setError(err.message || 'Failed to create account');
+      let errorMessage = 'Failed to create account';
+      
+      // Try to extract useful error info from the API response
+      if (err.response?.data?.detail) {
+        if (Array.isArray(err.response.data.detail)) {
+          errorMessage = err.response.data.detail.map(e => e.msg).join(', ');
+        } else {
+          errorMessage = err.response.data.detail;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     }
   };
 
@@ -186,28 +227,28 @@ const AuthPopup = ({ isOpen, onClose, redirectAfterAuth }) => {
           // Register Form
           <form onSubmit={handleRegister}>
             <div className="mb-4">
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
                 First Name
               </label>
               <input
-                id="fname"
+                id="firstName"
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div className="mb-4">
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
                 Last Name
               </label>
               <input
-                id="lname"
+                id="lastName"
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -229,7 +270,7 @@ const AuthPopup = ({ isOpen, onClose, redirectAfterAuth }) => {
 
             <div className="mb-4">
               <label htmlFor="regPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
+                Password (8-16 characters)
               </label>
               <input
                 id="regPassword"
