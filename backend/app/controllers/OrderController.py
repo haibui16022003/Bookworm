@@ -1,65 +1,80 @@
 from fastapi import  Depends, HTTPException
-from typing import Dict, List
+from sqlmodel import Session
+from datetime import datetime, timezone
 
 from app.models.OrderModel import OrderModel, OrderItemModel
-from app.schema.OrderSchema import OrderSchema, OrderItemSchema
+from app.schema.OrderSchema import OrderItemSchema, OrderResponse, OrderCreate
+from app.db.session import get_session
+
 
 class OrderController:
     """
     Order Controller
     """
-    def __init__(self, db_session):
-        self.db = db_session
 
-    def create_order(self, order: OrderSchema) -> OrderModel:
-        """
-        Create a new order.
-        :param order: OrderSchema object
-        :return: Created OrderModel object
-        """
-        order_model = OrderModel(**order.dict())
-        self.db.add(order_model)
+    def __init__(self, db: Session = Depends(get_session)):
+        self.db = db
+
+    def create_order(self, order: OrderCreate) -> OrderResponse:
+        # Create the order first
+        new_order = OrderModel(
+            user_id=order.user_id,
+            order_date=datetime.now(timezone.utc),
+            order_amount=order.order_amount
+        )
+
+        # Add and commit to get the ID
+        self.db.add(new_order)
         self.db.commit()
-        self.db.refresh(order_model)
-        return order_model
+        self.db.refresh(new_order)
 
-    def get_order_by_id(self, order_id: int) -> OrderModel:
+        new_order_items = []
+        for item in order.order_items:
+            new_order_item = OrderItemModel(
+                order_id=new_order.id,
+                book_id=item.book_id,
+                quantity=item.quantity,
+                price=item.price
+            )
+            new_order_items.append(new_order_item)
+            self.db.add(new_order_item)
+
+        self.db.commit()
+
+        # Explicitly create OrderItemSchema objects with required fields
+        order_items_schema = [
+            OrderItemSchema(
+                book_id=item.book_id,
+                quantity=item.quantity,
+                price=item.price
+            ) for item in new_order_items
+        ]
+
+        return OrderResponse(
+            id=new_order.id,
+            user_id=new_order.user_id,
+            order_date=new_order.order_date,
+            order_amount=new_order.order_amount,
+            order_items=order_items_schema
+        )
+
+
+    def get_order_by_id(self, order_id: int) -> OrderResponse:
         """
         Get an order by ID.
         :param order_id: ID of the order to retrieve
-        :return: OrderModel object
+        :return: OrderResponse object
         """
-        order = self.db.query(OrderModel).filter(OrderModel.id == order_id).first()
+        order = self.db.query(OrderModel).where(OrderModel.id == order_id).first()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
-        return order
 
-    def get_user_orders(self, user_id: int) -> List[OrderModel]:
-        """
-        Get all orders for a specific user.
-        :param user_id: ID of the user to retrieve orders for
-        :return: List of OrderModel objects
-        """
-        orders = self.db.query(OrderModel).filter(OrderModel.user_id == user_id).all()
-        return orders
+        order_items = self.db.query(OrderItemModel).where(OrderItemModel.order_id == order_id).all()
+        return OrderResponse(
+            id=order.id,
+            user_id=order.user_id,
+            order_date=order.order_date,
+            order_amount=order.order_amount,
+            order_items=[OrderItemSchema(**item.__dict__) for item in order_items]
+        )
 
-    def add_order_item(self, order_item: OrderItemSchema) -> OrderItemModel:
-        """
-        Add an item to an existing order.
-        :param order_item: OrderItemSchema object
-        :return: Created OrderItemModel object
-        """
-        order_item_model = OrderItemModel(**order_item.dict())
-        self.db.add(order_item_model)
-        self.db.commit()
-        self.db.refresh(order_item_model)
-        return order_item_model
-
-    def get_order_items(self, order_id: int) -> List[OrderItemModel]:
-        """
-        Get all items for a specific order.
-        :param order_id: ID of the order to retrieve items for
-        :return: List of OrderItemModel objects
-        """
-        items = self.db.query(OrderItemModel).filter(OrderItemModel.order_id == order_id).all()
-        return items

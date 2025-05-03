@@ -2,6 +2,9 @@ import { createContext, useContext, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchData, postData } from '../services/api/ApiService';
 
+// Custom event for logout
+export const LOGOUT_EVENT = 'user-logout';
+
 const AuthContext = createContext();
 
 const saveAuthData = (userData, accessToken) => {
@@ -13,7 +16,6 @@ const clearAuthData = () => {
   localStorage.removeItem('user');
   localStorage.removeItem('access_token');
 };
-
 
 const loadUserFromStorage = () => {
   try {
@@ -80,10 +82,14 @@ const AuthProvider = ({ children }) => {
     onSuccess: () => {
       queryClient.setQueryData(['auth-user'], null);
       clearAuthData();
+      // Dispatch custom event for logout
+      window.dispatchEvent(new Event(LOGOUT_EVENT));
     },
     onError: () => {
       queryClient.setQueryData(['auth-user'], null);
       clearAuthData();
+      // Dispatch custom event even on error
+      window.dispatchEvent(new Event(LOGOUT_EVENT));
     }
   });
 
@@ -111,6 +117,7 @@ const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
+      console.log('Registering user:', userData);
       return await registerMutate(userData);
     } catch (error) {
       console.error('Registration error:', error);

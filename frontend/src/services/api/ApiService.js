@@ -19,10 +19,42 @@ export const fetchData = async (endpoint, params = {}, requireAuth = false) => {
 export const postData = async (endpoint, data, requiresAuth = true, config = {}) => {
     try {
         const client = requiresAuth ? authApiClient : publicApiClient;
+        
+        // Get token from local storage
+        const token = localStorage.getItem('access_token');
+        
+        // Log the complete headers that will be sent
+        console.log('Request Headers being sent:', {
+            ...config.headers,
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        });
+        
+        // Log local storage data
+        const localStorageData = localStorage.getItem('user');
+        if (localStorageData) {
+            console.log('Local Storage User Data:', JSON.parse(localStorageData));
+        } else {
+            console.log('No user data found in local storage.');
+        }
+        
+        if (token) {
+            console.log('Access Token found:', token.substring(0, 10) + '...');
+        } else {
+            console.log('No access token found in local storage.');
+        }
+        // Log request data
+        console.log('Request Data:', data);
+        
         const response = await client.post(endpoint, data, config);
+        console.log('Response status:', response.status);
         return response.data;
     } catch (error) {
         console.error(`Error posting to ${endpoint}:`, error);
+        console.error('Full error object:', error);
+        if (error.response) {
+            console.error('Response status:', error.response.status);
+            console.error('Response data:', error.response.data);
+        }
         throw error;
     }
 }

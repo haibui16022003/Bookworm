@@ -4,6 +4,7 @@ from faker import Faker
 from sqlmodel import Session, create_engine
 from typing import List
 from decimal import Decimal
+from passlib.context import CryptContext
 
 # Import your models
 from app.models import (
@@ -148,6 +149,7 @@ def create_books(session: Session, categories: List[CategoryModel], authors: Lis
 
 def create_users(session: Session) -> List[UserModel]:
     """Create fake users."""
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     users = []
 
     # Use a set to track unique emails
@@ -158,7 +160,7 @@ def create_users(session: Session) -> List[UserModel]:
         first_name="Admin",
         last_name="User",
         email="admin@bookstore.com",
-        password="$2b$12$1HhJqsI2JQXmHSNhs1gj3O/9UywYh2Jlp4ZD4duw2GfWNmq5siiQa",  # hashed 'password123'
+        password=pwd_context.hash("password123"),
         admin=True
     )
     session.add(admin_user)
@@ -177,7 +179,7 @@ def create_users(session: Session) -> List[UserModel]:
                 first_name=fake.first_name(),
                 last_name=fake.last_name(),
                 email=email,
-                password="$2b$12$1HhJqsI2JQXmHSNhs1gj3O/9UywYh2Jlp4ZD4duw2GfWNmq5siiQa",  # hashed 'password123'
+                password=pwd_context.hash("password123"),
                 admin=False
             )
             session.add(user)

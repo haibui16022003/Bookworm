@@ -46,6 +46,9 @@ class JWTMiddleware(BaseHTTPMiddleware):
         """
         path = request.url.path
 
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         # Only authenticate on protected paths
         if self._check_protected_path(path):
             try:
@@ -62,10 +65,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     )
 
                 token = auth_header.split(" ")[1]
-
                 # Validate token and get user
                 user = get_current_user_from_token(token, db)
-
                 # Store user in request state
                 request.state.user = user
             except HTTPException as e:

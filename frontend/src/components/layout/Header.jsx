@@ -1,15 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 import AuthPopup from '../auth/AuthPopup';
 
 const Header = () => {
   const { user, logout, isUserLoading } = useAuth();
+  const { getTotalQuantity } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [authPopupOpen, setAuthPopupOpen] = useState(false);
   const [redirectPath, setRedirectPath] = useState('');
   const [localUser, setLocalUser] = useState(null);
+  const [cartCount, setCartCount] = useState(0);
   const dropdownRef = useRef(null);
 
   // Check for user in localStorage on initial render
@@ -32,6 +35,11 @@ const Header = () => {
       setLocalUser(null);
     }
   }, [user, isUserLoading]);
+
+  // Update cart count whenever it changes
+  useEffect(() => {
+    setCartCount(getTotalQuantity());
+  }, [getTotalQuantity]);
 
   const navLinkClass = ({ isActive }) =>
     isActive ? 'underline font-medium' : 'hover:underline';
@@ -63,14 +71,6 @@ const Header = () => {
     e.preventDefault();
     setRedirectPath('');
     setAuthPopupOpen(true);
-  };
-
-  const handleCartClick = (e) => {
-    if (!localUser) {
-      e.preventDefault();
-      setRedirectPath('/cart');
-      setAuthPopupOpen(true);
-    }
   };
 
   const closeAuthPopup = () => {
@@ -105,9 +105,8 @@ const Header = () => {
           <NavLink 
             to="/cart" 
             className={navLinkClass}
-            onClick={handleCartClick}
           >
-            Cart (0)
+            Cart ({cartCount})
           </NavLink>
           
           {isAuthenticated ? (
@@ -192,17 +191,10 @@ const Header = () => {
                 <li>
                   <NavLink 
                     to="/cart" 
-                    onClick={(e) => {
-                      if (!isAuthenticated) {
-                        e.preventDefault();
-                        setRedirectPath('/cart');
-                        setAuthPopupOpen(true);
-                      }
-                      toggleMenu();
-                    }} 
+                    onClick={toggleMenu}
                     className={navLinkClass}
                   >
-                    Cart (0)
+                    Cart ({cartCount})
                   </NavLink>
                 </li>
                 

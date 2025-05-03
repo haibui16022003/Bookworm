@@ -5,11 +5,12 @@ import HomePage from './pages/HomePage';
 import ShopPage from './pages/ShopPage';
 import AboutPage from './pages/AboutPage';
 import BookDetailPage from './pages/BookDetailPage';
+import CartPage from './pages/CartPage';
 import NotFoundPage from './pages/NotFound';
 import AuthProvider from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
 
 // Hard-coded components to avoid errors
-const CartPage = () => <div>Cart Page</div>;
 const ProfilePage = () => <div>Profile Page</div>;
 const ChangePasswordPage = () => <div>Change Password Page</div>;
 
@@ -27,18 +28,20 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/shop" element={<ShopPage />} />
-            <Route path="/book/:id" element={<BookDetailPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/change-password" element={<ChangePasswordPage />} />
-          </Routes>
-        </Router>
+        <CartProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/shop" element={<ShopPage />} />
+              <Route path="/book/:id" element={<BookDetailPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/change-password" element={<ChangePasswordPage />} />
+            </Routes>
+          </Router>
+        </CartProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

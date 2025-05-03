@@ -120,6 +120,8 @@ const AddToCart = ({ book }) => {
     // Prepare the order item
     const orderItem = {
       book_id: book.id,
+      book_title: book.book_title,
+      book_cover_photo: book.book_cover_photo,
       quantity: newQuantity,
       price: book.current_price
     };

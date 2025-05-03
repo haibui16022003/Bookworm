@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
-const AuthPopup = ({ isOpen, onClose, redirectAfterAuth }) => {
+const AuthPopup = ({ isOpen, onClose, redirectAfterAuth, onAuthSuccess = null }) => {
   const { login, register } = useAuth();
   const [isLoginView, setIsLoginView] = useState(true);
   const [firstName, setFirstName] = useState('');
@@ -90,8 +90,11 @@ const AuthPopup = ({ isOpen, onClose, redirectAfterAuth }) => {
       setLoading(false);
       onClose();
       
-      // Navigate to the requested page after successful login
-      if (redirectAfterAuth) {
+      // Call onAuthSuccess callback if provided
+      if (onAuthSuccess) {
+        onAuthSuccess();
+      } else if (redirectAfterAuth) {
+        // Navigate to the requested page after successful login
         window.location.href = redirectAfterAuth;
       }
     } catch (err) {
@@ -111,12 +114,23 @@ const AuthPopup = ({ isOpen, onClose, redirectAfterAuth }) => {
     setLoading(true);
 
     try {
-      await register(firstName, lastName, email, password);
+
+      const userData = {
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        password: password
+      }
+
+      await register(userData);
       setLoading(false);
       onClose();
       
-      // Navigate to the requested page after successful registration
-      if (redirectAfterAuth) {
+      // Call onAuthSuccess callback if provided
+      if (onAuthSuccess) {
+        onAuthSuccess();
+      } else if (redirectAfterAuth) {
+        // Navigate to the requested page after successful registration
         window.location.href = redirectAfterAuth;
       }
     } catch (err) {
