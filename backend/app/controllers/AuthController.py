@@ -4,7 +4,8 @@ from sqlmodel import Session, select
 
 from app.schema.UserSchema import UserRegister, UserResponse
 from app.models import UserModel
-from app.core.security import hash_password, authenticate_user
+from app.core.security import hash_password, authenticate_user, get_user_from_refresh_token
+from app.core.security.app_token import decode_token
 from app.db.session import get_session
 
 
@@ -58,4 +59,25 @@ class AuthController:
         :return: UserResponse object with the logged-in user's details
         """
         return authenticate_user(email, password, self.db)
+
+
+    def get_user_by_refresh_token(self, refresh_token: str):
+        """
+        Get user from refresh token.
+        :param refresh_token: JWT refresh token
+        :return: UserResponse object with the user's details
+        """
+        user = get_user_from_refresh_token(refresh_token, self.db)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token"
+            )
+        return UserResponse(
+            id=user.id,
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            is_admin=user.is_admin
+        )
 

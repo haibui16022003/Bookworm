@@ -13,4 +13,4 @@ class BookModel(SQLModel, table=True):
     book_title: str = Field(sa_column=Column(VARCHAR(255)))
     book_summary: str = Field(sa_column=Column(Text))
     book_price: float = Field(sa_column=Column(Numeric(5, 2)))
-    book_cover_photo: str = Field(sa_column=Column(VARCHAR(20)))
+    book_cover_photo: str = Field(sa_column=Column(VARCHAR(256)))

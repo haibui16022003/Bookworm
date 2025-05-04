@@ -22,7 +22,8 @@ def create_access_token(
         expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({
         "exp": expire,
-        "iat": datetime.now(timezone.utc)
+        "iat": datetime.now(timezone.utc),
+        "token_type": "access"
     })
 
     try:
@@ -44,7 +45,8 @@ def create_refresh_token(
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({
         "exp": expire,
-        "iat": datetime.now(timezone.utc)
+        "iat": datetime.now(timezone.utc),
+        "token_type": "refresh"
     })
 
     try:
@@ -52,3 +54,8 @@ def create_refresh_token(
     except jwt.PyJWTError as e:
         raise ValueError(f"Token generation failed: {e}")
     return encoded_refresh_jwt
+
+
+def decode_token(token: str):
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    return payload

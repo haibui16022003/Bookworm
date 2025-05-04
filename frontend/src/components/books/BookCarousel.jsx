@@ -1,13 +1,11 @@
 import React, { useEffect, useState, useRef } from "react";
 import BookCard from "./BookCard";
 
-const BookCarousel = ({ books, title, cardsPerView = 4 }) => {
+const BookCarousel = ({ books, title, cardsPerView = 4, viewAllLink = "/shop?sortBy=on-sale" }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [visibleCards, setVisibleCards] = useState(cardsPerView);
   const carouselRef = useRef(null);
   const autoplayRef = useRef(null);
-
-  const viewAllLink = "/shop?sortBy=on-sale";
 
   // Handle responsiveness
   useEffect(() => {
@@ -26,11 +24,11 @@ const BookCarousel = ({ books, title, cardsPerView = 4 }) => {
 
   const totalItems = books.length;
 
-  // Autoplay every 3 seconds
+  // Autoplay every 10 seconds
   useEffect(() => {
     autoplayRef.current = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % totalItems);
-    }, 3000);
+    }, 10000);
 
     return () => clearInterval(autoplayRef.current);
   }, [totalItems]);
@@ -40,7 +38,7 @@ const BookCarousel = ({ books, title, cardsPerView = 4 }) => {
   const handleMouseLeave = () => {
     autoplayRef.current = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % totalItems);
-    }, 3000);
+    }, 10000);
   };
 
   const nextSlide = () => {
@@ -93,19 +91,21 @@ const BookCarousel = ({ books, title, cardsPerView = 4 }) => {
         {/* Carousel */}
         <div
           className="w-[90%] flex gap-4 overflow-hidden transition-transform duration-500 ease-in-out"
-          // style={{transform: `translateX(-${(100 / visibleCards) * currentIndex}%)`}}
           ref={carouselRef}
         >
           {visibleBooks.map((book, index) => (
             <div
               key={book.id}
-              className=""
+              className="flex-shrink-0"
               style={{
-                width: `${100 / visibleCards}%`,
+                width: `calc(${100 / visibleCards}% - ${(4 * (visibleCards - 2)) / visibleCards}px)`,
                 transition: "transform 0.5s ease-in-out",
               }}
             >
-              <BookCard book={book} />
+              {/* Fixed height container for consistent card sizing */}
+              <div className="h-full">
+                <BookCard book={book} />
+              </div>
             </div>
           ))}
         </div>

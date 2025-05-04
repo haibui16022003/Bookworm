@@ -1,53 +1,56 @@
-import { useState, useEffect } from 'react';
-import { fetchBooks, fetchSaleBooks, fetchBookById } from '../services/api/BookService';
+import { useQuery } from '@tanstack/react-query';
+import { fetchData } from '../services/api/ApiService';
 
 export const useBooks = (
-  offset = 0, 
-  limit = 10, 
-  category_id = null, 
+  offset = 0,
+  limit = 10,
+  category_id = null,
   author_id = null,
   desc_price = null,
+  min_stars = null
 ) => {
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
+  
+  const params = {
+    offset,
+    limit,
+    ...(category_id !== null && { category_id }),
+    ...(author_id !== null && { author_id }),
+    ...(desc_price !== null && { desc_price }),
+    ...(min_stars !== null && { min_stars })
+  };
 
-  useEffect(() => {
-    const loadBooks = async () => {
-      console.log('useBooks hook called with params:', {
-        offset,
-        limit,
-        category_id,
-        author_id,
-        desc_price
-      });  
+  const queryKey = [
+    'books', 
+    offset, 
+    limit, 
+    category_id, 
+    author_id, 
+    desc_price,
+    min_stars
+  ];
 
-      try {
-        setLoading(true);
-        const response = await fetchBooks(offset, limit, category_id, author_id, desc_price);
-        
-        if (response.data) {
-          setBooks(response.data);
-          setTotalCount(response.total || 0);
-          setCurrentPage(response.page_num || 1);
-        } else {
-          setBooks(response.results || response || []);
-          if (response.count) setTotalCount(response.count);
-        }
-        console.log(response)
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Use React Query without auth
+  const { 
+    data, 
+    isLoading: loading, 
+    error 
+  } = useQuery({
+    queryKey,
+    queryFn: () => fetchData('/books/', params, false), 
+    staleTime: 60000, 
+  });
 
-    loadBooks();
-  }, [offset, limit, category_id, author_id, desc_price]);
+  const books = data?.data || data?.results || data || [];
+  const totalCount = data?.total || data?.count || 0;
+  const currentPage = data?.page_num || 1;
 
-  return { books, loading, error, totalCount, currentPage };
+  return { 
+    books, 
+    loading, 
+    error: error?.message || null, 
+    totalCount, 
+    currentPage 
+  };
 };
 
 export const useOnSaleBooks = (
@@ -55,70 +58,122 @@ export const useOnSaleBooks = (
   limit = 10,
   category_id = null,
   author_id = null,
+  min_stars = null
 ) => {
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
+  const params = {
+    offset,
+    limit,
+    ...(category_id !== null && { category_id }),
+    ...(author_id !== null && { author_id }),
+    ...(min_stars !== null && { min_stars })
+  };
 
-  useEffect(() => {
-    const loadSaleBooks = async () => {
-      try {
-        setLoading(true);
-        const response = await fetchSaleBooks(offset, limit, category_id, author_id);
-        
-        if (response.data) {
-          setBooks(response.data);
-          setTotalCount(response.total || 0);
-          setCurrentPage(response.page_num || 1);
-        } else {
-          setBooks(response.results || response || []);
-          if (response.count) setTotalCount(response.count);
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const { 
+    data, 
+    isLoading: loading, 
+    error 
+  } = useQuery({
+    queryKey: ['saleBooks', offset, limit, category_id, author_id, min_stars],
+    queryFn: () => fetchData('/books/discounts', params, false), 
+    staleTime: 60000,
+  });
 
-    loadSaleBooks();
-  }, [offset, limit, category_id, author_id]);
+  const books = data?.data || data?.results || data || [];
+  const totalCount = data?.total || data?.count || 0;
+  const currentPage = data?.page_num || 1;
 
-  return { books, loading, error, totalCount, currentPage };
+  return { 
+    books, 
+    loading, 
+    error: error?.message || null, 
+    totalCount, 
+    currentPage 
+  };
 };
 
 export const useBookDetails = (id) => {
-  const [book, setBook] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { 
+    data: book, 
+    isLoading: loading, 
+    error 
+  } = useQuery({
+    queryKey: ['book', id],
+    queryFn: () => fetchData(`/books/${id}/`, {}, false), // No auth required
+    enabled: !!id,
+    staleTime: 300000, // 5 minutes
+  });
 
-  useEffect(() => {
-    const loadBook = async () => {
-      if (!id) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const data = await fetchBookById(id);
-        setBook(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadBook();
-  }, [id]);
-
-  return { book, loading, error };
+  return { 
+    book: book || null, 
+    loading, 
+    error: error?.message || null 
+  };
 };
 
-export const useFeaturedBooks = (limit = 8) => {
-  const { books, loading, error } = useBooks(0, limit);
-  return { books, loading, error };
+export const useRecommendedBooks = (limit = 8) => {
+  const {
+    data: books, 
+    isLoading: loading, 
+    error 
+  } = useQuery({
+    queryKey: ['recommendedBooks', limit],
+    queryFn: () => fetchData('/books/recommended/', { limit }, false), // No auth required
+    staleTime: 60000, // 1 minute
+  });
+
+  return { 
+    books: books || [], 
+    loading, 
+    error: error?.message || null 
+  };
+};
+
+export const usePopularBooks = (limit = 8) => {
+  const {
+    data: books, 
+    isLoading: loading, 
+    error 
+  } = useQuery({
+    queryKey: ['popularBooks', limit],
+    queryFn: () => fetchData('/books/popular/', { limit }, false), // No auth required
+    staleTime: 60000, // 1 minute
+  });
+
+  return { 
+    books: books || [], 
+    loading, 
+    error: error?.message || null 
+  };
+};
+
+export const useTopDiscountedBooks = (limit = 10) => {
+  const {
+    data: books,
+    isLoading: loading,
+    error
+  } = useQuery({
+    queryKey: ['topDiscountedBooks', limit],
+    queryFn: () => fetchData('/books/top-discounted', { limit }, false), // No auth required
+    staleTime: 60000, // 1 minute
+  });
+
+  return {
+    books: books || [],
+    loading,
+    error: error?.message || null
+  };
+};
+
+export const useFeaturedBooks = () => {
+  const { books: recommendedBooks, loading: recommendedLoading, error: recommendedError } = useRecommendedBooks();
+  const { books: popularBooks, loading: popularLoading, error: popularError } = usePopularBooks();
+
+  return {
+    recommendedBooks,
+    recommendedLoading,
+    recommendedError,
+    popularBooks,
+    popularLoading,
+    popularError
+  };
 };

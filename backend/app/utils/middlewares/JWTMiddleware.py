@@ -4,16 +4,16 @@ from fastapi import Request, Response, HTTPException, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.core.security import get_current_user
+from app.core.security.dependencies import get_current_user_from_token
 from app.db.session import get_session
 
 
 class JWTMiddleware(BaseHTTPMiddleware):
     def __init__(
-        self,
-        app,
-        excluded_paths: Optional[List[str]] = None,
-        protected_paths: Optional[List[str]] = None
+            self,
+            app,
+            excluded_paths: Optional[List[str]] = None,
+            protected_paths: Optional[List[str]] = None
     ):
         """
         Initialize JWT middleware with custom configuration.
@@ -24,8 +24,13 @@ class JWTMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.excluded_paths = excluded_paths or [
             "/api/v1/auth/login",
+            "/api/v1/auth/logout",
             "/api/v1/auth/register",
+            "/api/v1/auth/refresh",
             "/api/v1/books",
+            "/api/v1/reviews",
+            "/api/v1/authors",
+            "/api/v1/categories",
             "/docs",
             "/redoc",
             "/openapi.json"
@@ -41,38 +46,38 @@ class JWTMiddleware(BaseHTTPMiddleware):
         """
         path = request.url.path
 
-        is_excluded = any(path.startswith(excluded) for excluded in self.excluded_paths)
-        is_protected = any(path.startswith(protected) for protected in self.protected_paths)
+        if request.method == "OPTIONS":
+            return await call_next(request)
 
-        # Initialize response in request state for potential token refresh
-        response = Response("Unauthorized", status_code=401)
-        request.state.response = response
+        # Only authenticate on protected paths
+        if self._check_protected_path(path):
+            try:
+                # Get database session
+                db = next(get_session())
 
-        try:
-            # Get database session
-            db = next(get_session())
-            # print("Check DB success")
-            # Try to authenticate user
-            user = await get_current_user(request, db)
-            # print("Check user success")
-            # Store user in request state
-            request.state.user = user
-        except HTTPException as e:
-            # If authentication fails, check if path is protected
-            if self._check_protected_path(request.url.path):
+                # Get access token from Authorization header
+                auth_header = request.headers.get("Authorization")
+                if not auth_header or not auth_header.startswith("Bearer "):
+                    return JSONResponse(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        content={"detail": "Missing or invalid access token"},
+                        headers={"WWW-Authenticate": "Bearer"}
+                    )
+
+                token = auth_header.split(" ")[1]
+                # Validate token and get user
+                user = get_current_user_from_token(token, db)
+                # Store user in request state
+                request.state.user = user
+            except HTTPException as e:
                 return JSONResponse(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    content={"detail": "Access forbidden"},
+                    status_code=e.status_code,
+                    content={"detail": e.detail},
+                    headers=e.headers
                 )
 
         # Continue with the request
         response = await call_next(request)
-
-        # Propagate any set-cookie headers from state response
-        if hasattr(request.state, "response") and request.state.response.headers.get("set-cookie"):
-            for header in request.state.response.headers.getlist("set-cookie"):
-                response.headers.append("set-cookie", header)
-
         return response
 
     def _check_protected_path(self, request_path: str) -> bool:
@@ -120,7 +125,6 @@ def admin_access(admin_required: bool = False):
                         break
 
             if not request or not hasattr(request.state, "user"):
-                # print("now ít here")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Authentication required",
@@ -129,7 +133,7 @@ def admin_access(admin_required: bool = False):
 
             user = request.state.user
 
-            if admin_required and not user.admin:
+            if admin_required and not user.is_admin:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Admin privileges required"
@@ -140,4 +144,3 @@ def admin_access(admin_required: bool = False):
         return wrapper
 
     return decorator
-

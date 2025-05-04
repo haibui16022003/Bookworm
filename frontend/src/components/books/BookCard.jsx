@@ -13,20 +13,21 @@ const BookCard = ({ book }) => {
 
   const isOnSale = current_price < original_price;
 
+  // Use the external image URL or fallback to a placeholder
+  const imageUrl = book_cover_photo 
+    ? book_cover_photo 
+    : 'https://placehold.co/400x500/e2e8f0/cbd5e0?text=Image+Not+Available';
+
   return (
     <Link to={`/book/${id}`} className="block hover:opacity-80 transition">
       <div className="bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col">
         {/* Image section */}
         <div className="bg-gray-300 aspect-[3/4] flex items-center justify-center">
-          {book_cover_photo ? (
-            <img
-              src={`/images/${book_cover_photo}`}
-              alt={book_title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span className="text-white text-sm">Book Image</span>
-          )}
+          <img
+            src={imageUrl}
+            alt={book_title || "Book Cover"}
+            className="w-full h-full object-cover"
+          />
         </div>
 
         {/* Info section */}

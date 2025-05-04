@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import uvicorn
 
 from app.db.session import init_db
 from app.utils.middlewares.JWTMiddleware import JWTMiddleware
-from app.api.v1.endpoint import BookRoute, UserRoute, AuthRoute, ReviewRoute, AuthorRoute, CategoryRoute
+from app.api.v1.endpoint import BookRoute, UserRoute, AuthRoute, ReviewRoute, AuthorRoute, CategoryRoute, OrderRoute
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,21 +30,7 @@ app.add_middleware(
 )
 
 # Add JWT middleware
-app.add_middleware(
-    JWTMiddleware,
-    excluded_paths=[
-        "/api/v1/auth/login",
-        "/api/v1/auth/register",
-        "/api/v1/books",
-        "/api/v1/authors",
-        "/api/v1/categories",
-        "/api/v1/reviews/{book_id}",
-        "/docs",
-        "/redoc",
-        "/openapi.json"
-    ],
-    protected_paths=["/api"]
-)
+app.add_middleware(JWTMiddleware)
 
 # Include routers
 app.include_router(BookRoute.router, prefix="/api/v1", tags=["Books"])
@@ -52,7 +39,11 @@ app.include_router(AuthRoute.router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(ReviewRoute.router, prefix="/api/v1", tags=["Reviews"])
 app.include_router(AuthorRoute.router, prefix="/api/v1", tags=["Authors"])
 app.include_router(CategoryRoute.router, prefix="/api/v1", tags=["Categories"])
+app.include_router(OrderRoute.router, prefix="/api/v1", tags=["Orders"])
 
 @app.get("/")
 def root():
     return {"message": "Authentication API is running 🚀"}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

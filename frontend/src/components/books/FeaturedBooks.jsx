@@ -1,18 +1,22 @@
-import React, { useState } from 'react';
+import React from 'react';
 import BookCard from './BookCard';
 import TabSection from '../ui/TabSection';
-import { useBooks } from '../../hooks/useBooks';
 import Loading from '../ui/Loading';
 import ErrorMessage from '../ui/ErrorMessage';
+import { useFeaturedBooks } from '../../hooks/useBooks';
 
-const FeaturedBooks = ({ books: initialBooks }) => {
-  // const [activeTab, setActiveTab] = useState('recommended');
-  
-  const { books: popularBooks, popularLoading, popularError } = useBooks(0, 8);
-  const { books: recommendedBooks, recommendedLoading, recommendedError} = useBooks(8, 16);
-  
+const FeaturedBooks = () => {
+  const { 
+    recommendedBooks, 
+    recommendedLoading, 
+    recommendedError,
+    popularBooks,
+    popularLoading,
+    popularError
+  } = useFeaturedBooks();
+
   const tabs = ['Recommended', 'Popular'];
-
+  
   const loading = recommendedLoading || popularLoading;
   const error = recommendedError || popularError;
 

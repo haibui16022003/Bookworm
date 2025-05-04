@@ -1,26 +1,21 @@
-import { useState, useEffect } from "react";
-import { fetchAuthors } from "../services/api/AuthorService";
+import { useQuery } from '@tanstack/react-query';
+import { fetchData } from '../services/api/ApiService';
 
 export const useAuthors = () => {
-    const [authors, setAuthors] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    
-    useEffect(() => {
-        const loadAuthors = async () => {
-        try {
-            setLoading(true);
-            const data = await fetchAuthors();
-            setAuthors(data.results || data);
-            setLoading(false);
-        } catch (err) {
-            setError(err.message);
-            setLoading(false);
-        }
-        };
-    
-        loadAuthors();
-    }, []);
-    
-    return { authors, loading, error };
-    }
+  const { 
+    data, 
+    isLoading: loading, 
+    error 
+  } = useQuery({
+    queryKey: ['authors'],
+    queryFn: () => fetchData('/authors/', {}, false),
+    select: (data) => data.results || data || [],
+    staleTime: 300000,
+  });
+
+  return { 
+    authors: data || [], 
+    loading, 
+    error: error?.message || null 
+  };
+};

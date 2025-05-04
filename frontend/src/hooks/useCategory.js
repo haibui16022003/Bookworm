@@ -1,28 +1,21 @@
-import { useState, useEffect } from 'react';
-import { fetchCategories } from '../services/api/CategoryService';
+import { useQuery } from '@tanstack/react-query';
+import { fetchData } from '../services/api/ApiService';
 
-const useCategories = () => {
-    const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+export const useCategories = () => {
+  const { 
+    data, 
+    isLoading: loading, 
+    error 
+  } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => fetchData('/categories/', {}, false),
+    select: (data) => data.results || data || [],
+    staleTime: 300000,
+  });
 
-    useEffect(() => {
-        const loadCategories = async () => {
-            try {
-                setLoading(true);
-                const data = await fetchCategories();
-                setCategories(data);
-            } catch (err) {
-                setError(err.message || 'Failed to fetch categories');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadCategories();
-    }, [fetchCategories]);
-
-    return { categories, loading, error };
+  return { 
+    categories: data || [], 
+    loading, 
+    error: error?.message || null 
+  };
 };
-
-export default useCategories;

@@ -2,12 +2,14 @@ from typing import Optional
 from jwt import decode, InvalidTokenError, ExpiredSignatureError
 from fastapi import Request, HTTPException, status, Depends
 from pydantic import BaseModel
+from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.security.password import verify_password
-from app.core.security.app_token import create_access_token
+# from app.core.security.app_token import create_access_token, create_refresh_token
 from app.db.session import get_session
 from app.models import UserModel
+from app.schema.UserSchema import UserResponse
 
 
 class AccessTokenData(BaseModel):
@@ -16,6 +18,7 @@ class AccessTokenData(BaseModel):
     """
     sub: str
     is_admin: bool = False
+    token_type: str = "access"
 
 
 def _strip_bearer(token: str) -> str:
@@ -26,12 +29,11 @@ def _strip_bearer(token: str) -> str:
     return token_str.replace("Bearer ", "") if token_str.startswith("Bearer ") else token_str
 
 
-def get_token(request: Request, access_token: Optional[str] = None, is_refresh_token: bool = False) -> str:
+def get_token(request: Request, is_refresh_token: bool = False) -> str:
     """
     Get the token from the request.
 
     :param request: The request object.
-    :param access_token: The access token from the cookie (optional).
     :param is_refresh_token: Whether to fetch the refresh token instead.
     :return: The extracted token string.
     :raises HTTPException: If the token is missing.
@@ -45,9 +47,7 @@ def get_token(request: Request, access_token: Optional[str] = None, is_refresh_t
             )
         return refresh_token
 
-    if access_token:
-        return _strip_bearer(access_token)
-
+    # Get token from Authorization header for access tokens
     auth_header = request.headers.get("Authorization")
     if auth_header:
         return _strip_bearer(auth_header)
@@ -58,15 +58,15 @@ def get_token(request: Request, access_token: Optional[str] = None, is_refresh_t
     )
 
 
-def get_user(user_email: str, db) -> Optional[UserModel]:
+def get_user(user_email: str, db: Session) -> Optional[UserModel]:
     """
     Get the user from the database by email.
     """
     user = db.query(UserModel).filter(UserModel.email == user_email).first()
-    return UserModel.model_validate(user) if user else None
+    return user if user else None
 
 
-def authenticate_user(email: str, password: str, db) -> Optional[UserModel]:
+def authenticate_user(email: str, password: str, db: Session) -> Optional[UserResponse]:
     """
     Authenticate the user using email and password.
     """
@@ -76,20 +76,107 @@ def authenticate_user(email: str, password: str, db) -> Optional[UserModel]:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
-    return UserModel.model_validate(user)
+
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        is_admin=user.admin
+    )
 
 
-async def get_current_user(request: Request, db=Depends(get_session)) -> Optional[UserModel]:
+def get_current_user_from_token(token: str, db: Session) -> UserResponse:
     """
-    Get the current user from the access token, and refresh it if expired.
+    Get current user from access token.
+
+    :param token: JWT access token
+    :param db: Database session
+    :return: User data if token is valid
+    :raises HTTPException: If token is invalid or user not found
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = payload.get("sub")
+        token_type = payload.get("token_type")
+
+        if email is None:
+            raise credentials_exception
+
+        if token_type != "access":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        user = get_user(email, db)
+        if user is None:
+            raise credentials_exception
+
+        return UserResponse(
+            id=user.id,
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            is_admin=user.admin
+        )
+    except (InvalidTokenError, ExpiredSignatureError):
+        raise credentials_exception
+
+
+def get_user_from_refresh_token(refresh_token: str, db: Session) -> UserResponse:
+    """
+    Validate refresh token and return user.
+
+    :param refresh_token: JWT refresh token
+    :param db: Database session
+    :return: User data if token is valid
+    :raises HTTPException: If token is invalid or user not found
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid refresh token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = payload.get("sub")
+
+        if email is None:
+            raise credentials_exception
+
+        user = get_user(email, db)
+        if user is None:
+            raise credentials_exception
+
+        return UserResponse(
+            id=user.id,
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            is_admin=user.admin
+        )
+    except (InvalidTokenError, ExpiredSignatureError):
+        raise credentials_exception
+
+
+async def get_current_user(request: Request, db: Session = Depends(get_session)) -> Optional[UserModel]:
+    """
+    Get the current user from the access token.
 
     :param request: The request object.
     :param db: The database session.
     :return: The current user model.
     :raises HTTPException: If the user cannot be authenticated.
     """
-    response = getattr(request.state, "response", None)
-
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -100,7 +187,12 @@ async def get_current_user(request: Request, db=Depends(get_session)) -> Optiona
         token = get_token(request)
         payload = decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email = payload.get("sub")
+        token_type = payload.get("token_type")
+
         if email is None:
+            raise credentials_exception
+
+        if token_type != "access":
             raise credentials_exception
 
         user = get_user(email, db)
@@ -108,36 +200,5 @@ async def get_current_user(request: Request, db=Depends(get_session)) -> Optiona
             raise credentials_exception
 
         return user
-
-    except ExpiredSignatureError:
-        try:
-            refresh_token = get_token(request, is_refresh_token=True)
-            refresh_payload = decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-            token_data = AccessTokenData(**refresh_payload)
-
-            user = get_user(token_data.sub, db)
-            if user is None:
-                raise credentials_exception
-
-            new_access_token = create_access_token(
-                data={"sub": user.email, "is_admin": user.admin},
-            )
-
-            if response:
-                response.set_cookie(
-                    key="access_token",
-                    value=new_access_token,
-                    httponly=True,
-                    expires=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # expires is in seconds
-                    samesite="lax",
-                    secure=False
-                )
-
-            request.state.user = user
-            return user
-
-        except (InvalidTokenError, ExpiredSignatureError):
-            raise credentials_exception
-
-    except InvalidTokenError:
+    except (InvalidTokenError, ExpiredSignatureError):
         raise credentials_exception
