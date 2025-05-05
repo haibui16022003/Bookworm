@@ -43,11 +43,12 @@ authApiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
-
-        // If error is not 401 or request has already been retried, reject
-        if (error.response?.status !== 401 || originalRequest._retry) {
-            return Promise.reject(error);
-        }
+        console.log('Error:', error);
+        
+        // Only try to refresh if we get a 401 (Unauthorized) and haven't retri// ed yet
+        // if (error.response?.status !== 401 || originalRequest._re//     try) {
+        //     return Promise.reject(error// );
+        // }
 
         // Mark this request as retried to prevent infinite loops
         originalRequest._retry = true;
@@ -66,8 +67,8 @@ authApiClient.interceptors.response.use(
         isRefreshing = true;
 
         try {
-            // Attempt to refresh token
-            const response = await authApiClient.post('/auth/refresh');
+            // Attempt to refresh token - this should use the refresh token from the HTTP-only cookie
+            const response = await authApiClient.post('/auth/refresh', {}, { withCredentials: true });
             const { access_token } = response.data;
             
             // Update localStorage with new token
@@ -81,6 +82,7 @@ authApiClient.interceptors.response.use(
         } catch (refreshError) {
             processQueue(refreshError, null);
             
+            // Clear auth data on refresh failure
             localStorage.removeItem('access_token');
             localStorage.removeItem('user');
             window.dispatchEvent(new CustomEvent('auth:logout-required'));
