@@ -6,7 +6,6 @@ const CartContext = createContext();
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
 
-  // Load cart from sessionStorage on initial render
   useEffect(() => {
     try {
       const cartData = sessionStorage.getItem('cart');
@@ -17,7 +16,6 @@ export const CartProvider = ({ children }) => {
     }
   }, []);
 
-  // Watch for external changes to sessionStorage
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === 'cart') {
