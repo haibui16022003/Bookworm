@@ -24,6 +24,8 @@ const BookCarousel = ({ books, title, cardsPerView = 4, viewAllLink = "/shop?sor
 
   const totalItems = books.length;
 
+  const gapPercentage = 2
+
   // Autoplay every 10 seconds
   useEffect(() => {
     autoplayRef.current = setInterval(() => {
@@ -98,7 +100,7 @@ const BookCarousel = ({ books, title, cardsPerView = 4, viewAllLink = "/shop?sor
               key={book.id}
               className="flex-shrink-0"
               style={{
-                width: `calc(${100 / visibleCards}% - ${(4 * (visibleCards - 2)) / visibleCards}px)`,
+                width: `calc(${100 / visibleCards}% - ${(gapPercentage * (visibleCards - 1)) / visibleCards}%)`,
                 transition: "transform 0.5s ease-in-out",
               }}
             >

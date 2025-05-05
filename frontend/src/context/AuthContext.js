@@ -40,16 +40,11 @@ const AuthProvider = ({ children }) => {
 
   const { data: user, isLoading: isUserLoading, error: userError, refetch: userRefetch } = useQuery({
     queryKey: ['auth-user'],
-    queryFn: () => fetchData('/auth/me', {}, true),
-    onSuccess: (userData) => {
-      // Update localStorage when we get fresh user data
-      if (userData) saveAuthData(userData, null);
-    },
-    onError: () => {
-      // Optionally clear user data on error
-      clearAuthData();
-    },
-    staleTime: 1000 * 60 * 5,
+    // Using load from storage instead of API call
+    queryFn: () => loadUserFromStorage(),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: Infinity,
     retry: false,
     initialData: loadUserFromStorage(),
   });
@@ -64,7 +59,7 @@ const AuthProvider = ({ children }) => {
       const formData = new FormData();
       formData.append('username', email);
       formData.append('password', password);
-      return postData('/auth/login/', formData, false);
+      return postData('/auth/login/', formData, false, { withCredentials: true });
     },
     onSuccess: (data) => {
       saveAuthData(data.user, data.access_token);
@@ -82,13 +77,11 @@ const AuthProvider = ({ children }) => {
     onSuccess: () => {
       queryClient.setQueryData(['auth-user'], null);
       clearAuthData();
-      // Dispatch custom event for logout
       window.dispatchEvent(new Event(LOGOUT_EVENT));
     },
     onError: () => {
       queryClient.setQueryData(['auth-user'], null);
       clearAuthData();
-      // Dispatch custom event even on error
       window.dispatchEvent(new Event(LOGOUT_EVENT));
     }
   });

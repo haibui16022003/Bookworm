@@ -5,35 +5,9 @@ import { Minus, Plus } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import { useBookDetails } from '../hooks/useBooks';
 import CustomerReviews from '../components/reviews/BookReview'; 
-import WriteReview from '../components/reviews/WriteReview';    
+import WriteReview from '../components/reviews/WriteReview';
+import BookDetails from '../components/books/BookDetails';    
 
-const BookDetails = ({ book }) => {
-  if (!book) return null;
-
-  return (
-    <div className="flex flex-col md:flex-row gap-6 md:gap-8">
-      <div className="flex-shrink-0 w-full md:w-1/3 lg:w-2/5">
-        <div className="bg-gray-200 w-full aspect-[3/4] rounded-lg shadow-md mb-3 overflow-hidden">
-          <img
-            src={book.book_cover_photo}
-            alt={`Cover of ${book.book_title}`}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = 'https://placehold.co/400x500/e2e8f0/cbd5e0?text=Image+Not+Available';
-            }}
-          />
-        </div>
-        <p className="text-sm text-gray-600 italic text-center md:text-left">By {book.author_name}</p>
-      </div>
-
-      <div className="flex-grow">
-        <h2 className="text-3xl font-bold mb-3 text-gray-800">{book.book_title}</h2>
-        <p className="text-gray-600 mb-4 leading-relaxed">{book.book_summary}</p>
-      </div>
-    </div>
-  );
-};
 
 const AddToCart = ({ book }) => {
   const [quantity, setQuantity] = useState(1);
@@ -42,7 +16,6 @@ const AddToCart = ({ book }) => {
   const MAX_QUANTITY = 8;
 
   useEffect(() => {
-    // Check if the book is already in the cart when component mounts or book changes
     if (book) {
       const cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
       const existingItem = cart.find(item => item.book_id === book.id);
@@ -58,7 +31,6 @@ const AddToCart = ({ book }) => {
   if (!book) return null;
 
   const incrementQuantity = () => {
-    // Calculate the total quantity after increment
     const newQuantity = quantity + 1;
     const totalQuantity = newQuantity + existingQuantity;
     
@@ -100,24 +72,18 @@ const AddToCart = ({ book }) => {
   };
 
   const addToCart = () => {
-    // Get current cart from session storage
-    const cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
-    
-    // Check if book already exists in cart
+    const cart = JSON.parse(sessionStorage.getItem("cart") || "[]");  
     const existingItemIndex = cart.findIndex(item => item.book_id === book.id);
     
-    // Calculate the new quantity
     const newQuantity = existingItemIndex >= 0 
       ? cart[existingItemIndex].quantity + quantity
       : quantity;
     
-    // Make sure it doesn't exceed the maximum
     if (newQuantity > MAX_QUANTITY) {
       setMessage(`Cart already contains ${existingQuantity} of this book. Cannot add more than ${MAX_QUANTITY} in total.`);
       return;
     }
-    
-    // Prepare the order item
+
     const orderItem = {
       book_id: book.id,
       book_title: book.book_title,
@@ -126,17 +92,19 @@ const AddToCart = ({ book }) => {
       price: book.current_price
     };
     
-    // Update or add the item
     if (existingItemIndex >= 0) {
       cart[existingItemIndex] = orderItem;
     } else {
       cart.push(orderItem);
     }
     
-    // Save to session storage
     sessionStorage.setItem("cart", JSON.stringify(cart));
     
-    // Update the existing quantity
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'cart',
+      newValue: JSON.stringify(cart)
+    }));
+
     setExistingQuantity(newQuantity);
     setQuantity(1);
     setMessage("Added to cart successfully!");
