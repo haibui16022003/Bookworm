@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple, Any
 from datetime import date
 from sqlalchemy import select, and_, or_, func
 from sqlmodel import Session, SQLModel
@@ -12,41 +12,59 @@ from app.db.session import get_session
 class BookController:
     def __init__(self, db: Session = Depends(get_session)):
         self.db = db
+        self.today = date.today()
 
     def _build_book_response(self, book: tuple) -> BookResponse:
         """Helper function to build a BookResponse object."""
-        book_id, book_title, book_summary, book_price, book_cover_photo, author_name, category_name = book[:7]
-        today = date.today()
+        if len(book) == 8 and isinstance(book[7], (int, float)):
+            # Format: (id, title, summary, price, cover, author, category, current_price)
+            book_id, book_title, book_summary, book_price, book_cover_photo, author_name, category_name, current_price = book
+            return BookResponse(
+                id=book_id,
+                book_title=book_title,
+                book_summary=book_summary,
+                original_price=book_price,
+                current_price=current_price,
+                book_cover_photo=book_cover_photo,
+                author_name=author_name,
+                category_name=category_name
+            )
+        else:
+            # Original format: (id, title, summary, price, cover, author, category)
+            book_id, book_title, book_summary, book_price, book_cover_photo, author_name, category_name = book[:7]
 
-        # Query all active discounts for the book
+            # Query all active discounts for the book
+            current_price = self._get_current_price(book_id, book_price)
+
+            return BookResponse(
+                id=book_id,
+                book_title=book_title,
+                book_summary=book_summary,
+                original_price=book_price,
+                current_price=current_price,
+                book_cover_photo=book_cover_photo,
+                author_name=author_name,
+                category_name=category_name
+            )
+
+    def _get_current_price(self, book_id: int, original_price: float) -> float:
+        """Helper function to get the current price considering active discounts."""
         discount_query = select(DiscountModel).where(
             and_(
                 DiscountModel.book_id == book_id,
-                DiscountModel.discount_start_date <= today,
-                DiscountModel.discount_end_date >= today,
+                DiscountModel.discount_start_date <= self.today,
+                DiscountModel.discount_end_date >= self.today,
             )
         )
         discounts = self.db.exec(discount_query).scalars().all()
 
         # Find the lowest price among all active discounts
-        current_price = book_price
         if discounts:
             discount_prices = [discount.discount_price for discount in discounts]
-            current_price = min(discount_prices)
+            return min(discount_prices)
+        return original_price
 
-        return BookResponse(
-            id=book_id,
-            book_title=book_title,
-            book_summary=book_summary,
-            original_price=book_price,
-            current_price=current_price,
-            book_cover_photo=book_cover_photo,
-            author_name=author_name,
-            category_name=category_name
-        )
-
-    @staticmethod
-    def _get_base_book_query():
+    def _get_base_book_query(self):
         """Helper function to get the base book query with author join."""
         return (
             select(
@@ -62,6 +80,75 @@ class BookController:
             .join(CategoryModel, BookModel.category_id == CategoryModel.id)
         )
 
+    def _get_discount_subquery(self):
+        """Helper function to create discount subquery."""
+        return (
+            select(
+                DiscountModel.book_id,
+                func.min(DiscountModel.discount_price).label("min_discount_price")
+            )
+            .where(
+                and_(
+                    DiscountModel.discount_start_date <= self.today,
+                    DiscountModel.discount_end_date >= self.today,
+                )
+            )
+            .group_by(DiscountModel.book_id)
+            .subquery()
+        )
+
+    def _get_rating_subquery(self, min_stars: int):
+        """Helper function to create rating subquery."""
+        return (
+            select(
+                ReviewModel.book_id,
+                func.avg(ReviewModel.rating_star).label("avg_rating")
+            )
+            .group_by(ReviewModel.book_id)
+            .having(func.avg(ReviewModel.rating_star) >= min_stars)
+            .subquery()
+        )
+
+    def _apply_filters(self, query, count_query, category_id=None, author_id=None, min_stars=None):
+        """Helper function to apply common filters to queries."""
+        # Apply basic filters
+        if category_id:
+            query = query.where(BookModel.category_id == category_id)
+            count_query = count_query.where(BookModel.category_id == category_id)
+        if author_id:
+            query = query.where(BookModel.author_id == author_id)
+            count_query = count_query.where(BookModel.author_id == author_id)
+
+        # Apply star rating filter if provided
+        if min_stars is not None:
+            rated_books_subquery = self._get_rating_subquery(min_stars)
+
+            query = query.join(
+                rated_books_subquery,
+                BookModel.id == rated_books_subquery.c.book_id
+            )
+
+            count_query = count_query.join(
+                rated_books_subquery,
+                BookModel.id == rated_books_subquery.c.book_id
+            )
+
+        return query, count_query
+
+    def _paginate_results(self, query, count_query, offset: int = 0, limit: int = 100) -> Dict:
+        """Helper function to paginate results and format response."""
+        total = self.db.exec(count_query).scalar_one()
+        books = self.db.exec(query.offset(offset).limit(limit)).all()
+
+        data = [self._build_book_response(book) for book in books]
+
+        page_num = offset // limit + 1
+        return {
+            "page_num": page_num,
+            "total": total,
+            "data": data,
+        }
+
     def get_all_books(
             self,
             offset: int = 0,
@@ -72,85 +159,48 @@ class BookController:
             min_stars: Optional[int] = None
     ) -> Dict:
         """
-        Get all books with optional filters for category, author, and minimum star rating.
-        :param offset: Book offset for pagination
-        :param limit: page size
-        :param category_id: filter by category id
-        :param author_id: filter by author id
-        :param desc_price: sort by price descending
-        :param min_stars: filter by minimum star rating
-        :return: Dictionary containing page number, total books, and list of BookResponse objects
+        Get all books with optional filters and sorting options.
         """
-        base_query = self._get_base_book_query()
+        # Create discount subquery for price calculation
+        discount_subquery = self._get_discount_subquery()
+
+        # Create main query with book data and current price calculation
+        query = (
+            select(
+                BookModel.id,
+                BookModel.book_title,
+                BookModel.book_summary,
+                BookModel.book_price,
+                BookModel.book_cover_photo,
+                AuthorModel.author_name,
+                CategoryModel.category_name,
+                func.coalesce(discount_subquery.c.min_discount_price, BookModel.book_price).label("current_price")
+            )
+            .join(AuthorModel, BookModel.author_id == AuthorModel.id)
+            .join(CategoryModel, BookModel.category_id == CategoryModel.id)
+            .outerjoin(discount_subquery, BookModel.id == discount_subquery.c.book_id)
+        )
+
         count_query = select(func.count()).select_from(BookModel)
-        
-        # Apply basic filters
-        if category_id:
-            base_query = base_query.where(BookModel.category_id == category_id)
-            count_query = count_query.where(BookModel.category_id == category_id)
-        if author_id:
-            base_query = base_query.where(BookModel.author_id == author_id)
-            count_query = count_query.where(BookModel.author_id == author_id)
-            
-        # If star rating filter is applied, we need a different approach
-        if min_stars is not None:
-            # Get books with specified minimum average rating
-            rated_books_subquery = (
-                select(
-                    ReviewModel.book_id,
-                    func.avg(ReviewModel.rating_star).label("avg_rating")
-                )
-                .group_by(ReviewModel.book_id)
-                .having(func.avg(ReviewModel.rating_star) >= min_stars)
-                .subquery()
-            )
-            
-            # Add the star rating filter to the main query
-            base_query = base_query.join(
-                rated_books_subquery,
-                BookModel.id == rated_books_subquery.c.book_id
-            )
-            
-            # Also update the count query to reflect the star rating filter
-            count_query = (
-                select(func.count(BookModel.id.distinct()))
-                .select_from(BookModel)
-                .join(
-                    rated_books_subquery,
-                    BookModel.id == rated_books_subquery.c.book_id
-                )
-            )
-            
-            # Reapply the other filters to the count query
-            if category_id:
-                count_query = count_query.where(BookModel.category_id == category_id)
-            if author_id:
-                count_query = count_query.where(BookModel.author_id == author_id)
 
-        # Execute the count query to get total books matching filters
-        total = self.db.exec(count_query).scalar_one()
-        
-        # Execute the main query to fetch books
-        books = self.db.exec(base_query.order_by(BookModel.id).offset(offset).limit(limit)).all()
-        
-        page_num = offset // limit + 1
-        data = [self._build_book_response(book) for book in books]
+        # Apply filters
+        query, count_query = self._apply_filters(query, count_query, category_id, author_id, min_stars)
 
+        # Apply price sorting based on calculated current_price
         if desc_price is not None:
-            data.sort(key=lambda x: x.current_price, reverse=desc_price)
+            sort_direction = func.coalesce(discount_subquery.c.min_discount_price,
+                                           BookModel.book_price).desc() if desc_price else func.coalesce(
+                discount_subquery.c.min_discount_price, BookModel.book_price).asc()
+            query = query.order_by(sort_direction)
+        else:
+            query = query.order_by(BookModel.id)
 
-        return {
-            "page_num": page_num,
-            "total": total,
-            "data": data,
-        }
+        # Paginate and return results
+        return self._paginate_results(query, count_query, offset, limit)
 
     def get_book_by_id(self, book_id: int) -> Optional[BookResponse]:
         """
         Get a book by its ID.
-        :param book_id: The ID of the book to retrieve.
-        :return: BookResponse object
-        :raises HTTPException: If the book with the given ID is not found.
         """
         query = self._get_base_book_query().where(BookModel.id == book_id)
         book = self.db.exec(query).first()
@@ -170,26 +220,20 @@ class BookController:
     ) -> Dict:
         """
         Get all books that are currently on discount.
-        :param offset: Book offset for pagination
-        :param limit: page size
-        :param category_id: filter by category id
-        :param author_id: filter by author id
-        :param min_stars: filter by minimum star rating
-        :return: Dictionary containing page number, total books, and list of BookResponse objects
         """
-        today = date.today()
-
+        # Get IDs of books with active discounts
         discount_query = (
             select(DiscountModel.book_id)
             .where(
                 and_(
-                    DiscountModel.discount_start_date <= today,
-                    DiscountModel.discount_end_date >= today,
+                    DiscountModel.discount_start_date <= self.today,
+                    DiscountModel.discount_end_date >= self.today,
                 )
             )
             .distinct()
         )
         discounted_book_ids = [row[0] for row in self.db.exec(discount_query).all()]
+
         if not discounted_book_ids:
             return {
                 "total": 0,
@@ -201,70 +245,30 @@ class BookController:
         query = self._get_base_book_query().where(BookModel.id.in_(discounted_book_ids))
         count_query = select(func.count(BookModel.id.distinct())).where(BookModel.id.in_(discounted_book_ids))
 
-        # Apply category and author filters
-        if category_id:
-            query = query.where(BookModel.category_id == category_id)
-            count_query = count_query.where(BookModel.category_id == category_id)
-        if author_id:
-            query = query.where(BookModel.author_id == author_id)
-            count_query = count_query.where(BookModel.author_id == author_id)
-            
-        # Apply star rating filter if provided
-        if min_stars is not None:
-            rated_books_subquery = (
-                select(
-                    ReviewModel.book_id,
-                    func.avg(ReviewModel.rating_star).label("avg_rating")
-                )
-                .group_by(ReviewModel.book_id)
-                .having(func.avg(ReviewModel.rating_star) >= min_stars)
-                .subquery()
-            )
-            
-            query = query.join(
-                rated_books_subquery,
-                BookModel.id == rated_books_subquery.c.book_id
-            )
-            
-            count_query = (
-                count_query.join(
-                    rated_books_subquery,
-                    BookModel.id == rated_books_subquery.c.book_id
-                )
-            )
+        # Apply filters
+        query, count_query = self._apply_filters(query, count_query, category_id, author_id, min_stars)
 
-        # Execute queries
-        total = self.db.exec(count_query).scalar_one()
-        books = self.db.exec(query.order_by(BookModel.id).offset(offset).limit(limit)).all()
-        data = [self._build_book_response(book) for book in books]
+        # Order by ID
+        query = query.order_by(BookModel.id)
 
-        page_num = offset // limit + 1
-        return {
-            "page_num": page_num,
-            "total": total,
-            "data": data,
-        }
+        # Paginate and return results
+        return self._paginate_results(query, count_query, offset, limit)
 
     def search_books(self, query_term: str, offset: int = 0, limit: int = 100) -> Dict:
         """
         Search for books by title or author name.
-        :param query_term: Book title or author name to search for
-        :param offset: Book offset for pagination
-        :param limit: page size
-        :return: Dictionary containing page number, total books, and list of BookResponse objects
         """
         pattern = f"%{query_term}%"
+
+        # Build main query
         query = self._get_base_book_query().where(
             or_(
                 BookModel.book_title.ilike(pattern),
                 AuthorModel.author_name.ilike(pattern),
             )
-        ).offset(offset).limit(limit)
+        )
 
-        books = self.db.exec(query).all()
-        data = [self._build_book_response(book) for book in books]
-
-        # Get total count for pagination
+        # Build count query for pagination
         count_query = select(func.count()).select_from(BookModel).join(
             AuthorModel, BookModel.author_id == AuthorModel.id
         ).where(
@@ -273,99 +277,65 @@ class BookController:
                 AuthorModel.author_name.ilike(pattern),
             )
         )
-        total = self.db.exec(count_query).scalar_one()
 
-        page_num = offset // limit + 1
-        return {
-            "page_num": page_num,
-            "total": total,
-            "data": data,
-        }
+        # Paginate and return results
+        return self._paginate_results(query, count_query, offset, limit)
 
     def get_book_price(self, book_id: int, quantity: int) -> Dict:
         """
         Get the price of a book by its ID and quantity.
-        :param book_id: The ID of the book
-        :param quantity: The quantity of the book
-        :return: The total price of the book
         """
-        query = self._get_base_book_query().where(BookModel.id == book_id)
-        book = self.db.exec(query).first()
-        if not book:
-            raise HTTPException(status_code=404, detail="Book not found")
+        book_response = self.get_book_by_id(book_id)  # This will raise 404 if book not found
 
-        book = self._build_book_response(book)
-        total_price = book.current_price * quantity
+        total_price = book_response.current_price * quantity
         return {
             "book_id": book_id,
             "quantity": quantity,
             "total_price": total_price,
         }
 
-    def get_recommended_books(self, limit: int = 8) -> List[BookResponse]:
-        """
-        Get recommended books based on highest average rating and lowest price.
-        :param limit: Number of books to return (default 8)
-        :return: List of BookResponse objects
-        """
+    def _get_books_with_criteria(
+            self,
+            join_criterion,
+            order_criteria,
+            limit: int
+    ) -> List[BookResponse]:
+        """Helper function for getting books by different criteria."""
         query = (
-            select(
-                BookModel.id,
-                BookModel.book_title,
-                BookModel.book_summary,
-                BookModel.book_price,
-                BookModel.book_cover_photo,
-                AuthorModel.author_name,
-                CategoryModel.category_name,
-                func.avg(ReviewModel.rating_star).label("avg_rating"),
-            )
-            .join(ReviewModel, BookModel.id == ReviewModel.book_id)
-            .join(AuthorModel, BookModel.author_id == AuthorModel.id)
-            .join(CategoryModel, BookModel.category_id == CategoryModel.id)
+            self._get_base_book_query()
+            .join(join_criterion)
             .group_by(BookModel.id, AuthorModel.author_name, CategoryModel.category_name)
-            .order_by(func.avg(ReviewModel.rating_star).desc(), BookModel.book_price.asc())
+            .order_by(*order_criteria)
             .limit(limit)
         )
 
         books = self.db.exec(query).all()
         return [self._build_book_response(book) for book in books]
+
+    def get_recommended_books(self, limit: int = 8) -> List[BookResponse]:
+        """
+        Get recommended books based on highest average rating and lowest price.
+        """
+        return self._get_books_with_criteria(
+            join_criterion=ReviewModel,
+            order_criteria=[func.avg(ReviewModel.rating_star).desc(), BookModel.book_price.asc()],
+            limit=limit
+        )
 
     def get_popular_books(self, limit: int = 8) -> List[BookResponse]:
         """
         Get popular books based on most reviews and lowest price.
-        :param limit: Number of books to return (default 8)
-        :return: List of BookResponse objects
         """
-        query = (
-            select(
-                BookModel.id,
-                BookModel.book_title,
-                BookModel.book_summary,
-                BookModel.book_price,
-                BookModel.book_cover_photo,
-                AuthorModel.author_name,
-                CategoryModel.category_name,
-                func.count(ReviewModel.id).label("review_count"),
-            )
-            .join(ReviewModel, BookModel.id == ReviewModel.book_id)
-            .join(AuthorModel, BookModel.author_id == AuthorModel.id)
-            .join(CategoryModel, BookModel.category_id == CategoryModel.id)
-            .group_by(BookModel.id, AuthorModel.author_name, CategoryModel.category_name)
-            .order_by(func.count(ReviewModel.id).desc(), BookModel.book_price.asc())
-            .limit(limit)
+        return self._get_books_with_criteria(
+            join_criterion=ReviewModel,
+            order_criteria=[func.count(ReviewModel.id).desc(), BookModel.book_price.asc()],
+            limit=limit
         )
 
-        books = self.db.exec(query).all()
-        return [self._build_book_response(book) for book in books]
-        
     def get_top_discounted_books(self, limit: int = 10) -> List[BookResponse]:
         """
         Get books with the highest discount amount (book_price - discount_price).
-        :param limit: Number of books to return (default 10)
-        :return: List of BookResponse objects
         """
-        today = date.today()
-        
         # Query to find books with active discounts and calculate the discount amount
         query = (
             select(
@@ -383,14 +353,14 @@ class BookController:
             .join(CategoryModel, BookModel.category_id == CategoryModel.id)
             .where(
                 and_(
-                    DiscountModel.discount_start_date <= today,
-                    DiscountModel.discount_end_date >= today,
+                    DiscountModel.discount_start_date <= self.today,
+                    DiscountModel.discount_end_date >= self.today,
                 )
             )
             .group_by(BookModel.id, AuthorModel.author_name, CategoryModel.category_name)
             .order_by((BookModel.book_price - func.min(DiscountModel.discount_price)).desc())
             .limit(limit)
         )
-        
+
         books = self.db.exec(query).all()
         return [self._build_book_response(book) for book in books]
